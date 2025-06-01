@@ -12,7 +12,18 @@
             padding: 20px;
             background-color: #f4f4f4;
         }
-        h1, h2 {
+        h1 {
+            color: white;
+            text-align: center;
+            background: linear-gradient(45deg, #4b6cb7, #182848);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+        h2 {
             color: #333;
             text-align: center;
         }
@@ -53,6 +64,12 @@
         }
         .delete-btn:hover {
             background-color: #c82333;
+        }
+        .show-validity-btn {
+            background-color: #007bff;
+        }
+        .show-validity-btn:hover {
+            background-color: #0056b3;
         }
         .admin-section {
             margin-top: 20px;
@@ -99,6 +116,12 @@
         .modal-content button {
             width: 48%;
         }
+        .validity-note {
+            font-size: 14px;
+            color: red;
+            margin-top: 5px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -106,12 +129,14 @@
         <h1>SC 小金庫</h1>
         <div class="form-group">
             <label for="employeeId">員工號</label>
-            <input type="text" id="employeeId" placeholder="請輸入7或8位數員工號">
+            <input type="text" id="employeeId" placeholder="請輸入員工號">
             <button onclick="checkBalance()">查詢餘額</button>
         </div>
         <div class="form-group">
             <label for="balance">當前餘額</label>
             <input type="text" id="balance" readonly value="">
+            <button class="show-validity-btn" onclick="showValidity()">顯示有效期限</button>
+            <p id="validityNote" class="validity-note"></p>
         </div>
         <div class="form-group">
             <label for="deposit">存款金額</label>
@@ -204,6 +229,23 @@
         function showError(message) {
             document.getElementById('error').textContent = message;
             setTimeout(() => document.getElementById('error').textContent = '', 3000);
+        }
+
+        // 計算當月月底日期
+        function getLastDayOfMonth() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth() + 1; // getMonth() 從 0 開始，需加 1
+            const lastDay = new Date(year, month, 0).getDate(); // 下個月的第 0 天即本月最後一天
+            return { month, lastDay };
+        }
+
+        // 顯示有效期限
+        function showValidity() {
+            const { month, lastDay } = getLastDayOfMonth();
+            const validityNote = document.getElementById('validityNote');
+            validityNote.textContent = `有效期限到${month}月${lastDay}日`;
+            validityNote.style.display = 'block';
         }
 
         // 驗證員工號格式（7或8位數字）
