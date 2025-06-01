@@ -328,19 +328,50 @@
         </div>
     </div>
 
-    <script>
-        // 銀行資料儲存
-        let bankData = JSON.parse(localStorage.getItem('bankData')) || {};
-        let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+    <script type="module">
+        // Import Firebase SDK modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, push, remove } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDsBYR7O8Q5_SG0ofYGVvQzmx-anQwntvE",
+            authDomain: "sc-bank-6a55c.firebaseapp.com",
+            databaseURL: "https://sc-bank-6a55c-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "sc-bank-6a55c",
+            storageBucket: "sc-bank-6a55c.firebasestorage.app",
+            messagingSenderId: "624717224751",
+            appId: "1:624717224751:web:10ab1911eb4ee230509fda",
+            measurementId: "G-QTJP7VPZ6H"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // 資料儲存
+        let bankData = {};
+        let transactions = [];
         const ADMIN_USERNAME = "admin";
         const ADMIN_PASSWORD = "123";
         let currentAction = null; // 當前操作：'deposit' 或 'withdraw'
-        let isAdminLoggedIn = false; // 管理員登入狀態，不儲存到 localStorage
+        let isAdminLoggedIn = false; // 管理員登入狀態
 
-        // 保存資料到 localStorage
+        // 監聽資料變化
+        onValue(ref(db, 'bankData'), (snapshot) => {
+            bankData = snapshot.val() || {};
+            checkBalance(); // 更新餘額和時間
+        });
+        onValue(ref(db, 'transactions'), (snapshot) => {
+            transactions = snapshot.val() ? Object.values(snapshot.val()) : [];
+            updateAdminTable();
+            checkBalance(); // 更新最後交易時間
+        });
+
+        // 保存資料到 Firebase
         function saveData() {
-            localStorage.setItem('bankData', JSON.stringify(bankData));
-            localStorage.setItem('transactions', JSON.stringify(transactions));
+            set(ref(db, 'bankData'), bankData);
+            // transactions 使用 push 方式新增，set 由監聽處理
         }
 
         // 初始化日期
@@ -364,8 +395,8 @@
         function getLastDayOfMonth() {
             const today = new Date();
             const year = today.getFullYear();
-            const month = today.getMonth() + 1; // getMonth() 從 0 開始，需加 1
-            const lastDay = new Date(year, month, 0).getDate(); // 下個月的第 0 天即本月最後一天
+            const month = today.getMonth() + 1;
+            const lastDay = new Date(year, month, 0).getDate();
             return { month, lastDay };
         }
 
@@ -508,7 +539,7 @@
             }
 
             bankData[employeeId].balance += amount;
-            transactions.push({
+            push(ref(db, 'transactions'), {
                 employeeId,
                 type: '存款',
                 amount,
@@ -517,8 +548,6 @@
             });
             document.getElementById('deposit').value = '';
             saveData();
-            updateAdminTable();
-            checkBalance(); // 更新餘額和最後交易時間
         }
 
         // 提款
@@ -538,7 +567,7 @@
             }
 
             bankData[employeeId].balance -= amount;
-            transactions.push({
+            push(ref(db, 'transactions'), {
                 employeeId,
                 type: '提款',
                 amount,
@@ -547,12 +576,10 @@
             });
             document.getElementById('withdraw').value = '';
             saveData();
-            updateAdminTable();
-            checkBalance(); // 更新餘額和最後交易時間
         }
 
         // 刪除交易記錄
-        function deleteTransaction(index) {
+        async function deleteTransaction(index) {
             if (!isAdminLoggedIn) {
                 showError("請先以管理員身分登入");
                 return;
@@ -567,18 +594,21 @@
                 bankData[employeeId].balance += amount;
             }
 
-            // 刪除交易記錄
-            transactions.splice(index, 1);
+            // 獲取交易記錄的鍵值
+            const snapshot = await onValue(ref(db, 'transactions'), (snapshot) => snapshot.val(), { onlyOnce: true });
+            const transactionKeys = Object.keys(snapshot.val());
+            const keyToDelete = transactionKeys[index];
 
-            // 更新餘額顯示（如果當前顯示的是該員工的餘額）
+            // 刪除交易記錄
+            await remove(ref(db, `transactions/${keyToDelete}`));
+
+            // 更新餘額顯示
             const currentEmployeeId = document.getElementById('employeeId').value.trim();
             if (currentEmployeeId === employeeId) {
                 checkBalance();
             }
 
-            // 保存資料並更新交易表格
             saveData();
-            updateAdminTable();
         }
 
         // 更新管理員交易表格
@@ -604,29 +634,15 @@
         updateAdminTable();
         document.getElementById('adminLoginForm').style.display = 'block';
         document.getElementById('adminArea').style.display = 'none';
+
+        // 將函數暴露給全局作用域，以便 HTML 事件處理器使用
+        window.checkBalance = checkBalance;
+        window.showValidity = showValidity;
+        window.handleAction = handleAction;
+        window.closeAdminAuth = closeAdminAuth;
+        window.confirmAdminAuth = confirmAdminAuth;
+        window.loginAdmin = loginAdmin;
+        window.deleteTransaction = deleteTransaction;
     </script>
-</body><script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyDsBYR7O8Q5_SG0ofYGVvQzmx-anQwntvE",
-    authDomain: "sc-bank-6a55c.firebaseapp.com",
-    databaseURL: "https://sc-bank-6a55c-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "sc-bank-6a55c",
-    storageBucket: "sc-bank-6a55c.firebasestorage.app",
-    messagingSenderId: "624717224751",
-    appId: "1:624717224751:web:10ab1911eb4ee230509fda",
-    measurementId: "G-QTJP7VPZ6H"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
+</body>
 </html>
