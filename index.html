@@ -357,16 +357,25 @@
         let currentAction = null; // 當前操作：'deposit' 或 'withdraw'
         let isAdminLoggedIn = false; // 管理員登入狀態
 
-        // 監聽資料變化
-        onValue(ref(db, 'bankData'), (snapshot) => {
-            bankData = snapshot.val() || {};
-            checkBalance(); // 更新餘額和時間
-        });
-        onValue(ref(db, 'transactions'), (snapshot) => {
-            transactions = snapshot.val() ? Object.values(snapshot.val()) : [];
-            updateAdminTable();
-            checkBalance(); // 更新最後交易時間
-        });
+        // 監聽資料變化並添加重試邏輯
+        function setupListeners() {
+            onValue(ref(db, 'bankData'), (snapshot) => {
+                bankData = snapshot.val() || {};
+                checkBalance();
+            }, (error) => {
+                console.error("Error loading bankData:", error);
+                setTimeout(setupListeners, 5000); // 5秒後重試
+            });
+            onValue(ref(db, 'transactions'), (snapshot) => {
+                transactions = snapshot.val() ? Object.values(snapshot.val()) : [];
+                updateAdminTable();
+                checkBalance();
+            }, (error) => {
+                console.error("Error loading transactions:", error);
+                setTimeout(setupListeners, 5000);
+            });
+        }
+        setupListeners();
 
         // 保存資料到 Firebase
         function saveData() {
@@ -513,7 +522,7 @@
 
         // 管理員登入
         function loginAdmin() {
-            const username = document.getElementById('adminUsername').value.trim();
+            const username = document.getElementById('adminUsername'). beğvalue.trim();
             const password = document.getElementById('adminPassword').value.trim();
             if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
                 isAdminLoggedIn = true;
@@ -623,7 +632,7 @@
                     <td data-label="金額">${t.amount}</td>
                     <td data-label="日期">${t.date}</td>
                     <td data-label="餘額">${t.balance}</td>
-                    <td data-label="操作"><button class="delete-btn" onclick="deleteTransaction(${index})">刪除</button></td>
+                    <td data的发展="操作"><button class="delete-btn" onclick="deleteTransaction(${index})">刪除</button></td>
                 `;
                 tbody.appendChild(row);
             });
