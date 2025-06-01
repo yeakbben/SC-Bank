@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SC 小金庫</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Dancing+Script:wght@400&display=swap" rel="stylesheet">
     <style>
@@ -127,7 +127,7 @@
             margin: 5px 0;
             text-align: center;
         }
-        .last-time, .validity-note {
+        .last-time, .validity-note, .special-message {
             font-size: 0.9rem;
             color: #d81b60;
             margin-top: 5px;
@@ -264,6 +264,7 @@
             <input type="text" id="balance" readonly value="">
             <p id="lastDepositTime" class="last-time"></p>
             <p id="lastWithdrawTime" class="last-time"></p>
+            <p id="specialMessage" class="special-message"></p>
             <button class="validity-btn" onclick="showValidity()">顯示有效期限</button>
             <p id="validityNote" class="validity-note"></p>
         </div>
@@ -359,6 +360,13 @@
             { username: "Ivan", password: "2802229" },
             { username: "Celine", password: "2802235" }
         ];
+        const ALLOWED_EMPLOYEE_IDS = [
+            "10011985", "2801937", "2802155", "10014584", "2803219",
+            "10014576", "10012088", "2802301", "2802862", "2802670",
+            "10014567", "2803297", "10015181", "2802269", "10013395",
+            "2804007", "10014339", "10014378", "2802663"
+        ];
+        const ADMIN_IDS = ["2802312", "2801433", "2802229", "2802235"];
         let currentAction = null; // 當前操作：'deposit' 或 'withdraw'
         let isAdminLoggedIn = false; // 管理員登入狀態
         let currentAdmin = null; // 當前登入的管理員帳號
@@ -406,6 +414,15 @@
             setTimeout(() => document.getElementById('error').textContent = '', 3000);
         }
 
+        // 顯示特定提示訊息（管理者或查無員工）
+        function showSpecialMessage(message) {
+            const specialMsg = document.getElementById('specialMessage');
+            specialMsg.textContent = message;
+            setTimeout(() => {
+                specialMsg.textContent = '';
+            }, 3000);
+        }
+
         // 計算當月月底日期
         function getLastDayOfMonth() {
             const today = new Date();
@@ -423,11 +440,19 @@
             validityNote.style.display = 'block';
         }
 
-        // 驗證員工號格式（7或8位數字）
+        // 驗證員工號格式並檢查是否允許
         function validateEmployeeId(employeeId) {
             const regex = /^\d{7,8}$/;
             if (!employeeId || !regex.test(employeeId)) {
                 showError("員工號必須為7或8位數字");
+                return false;
+            }
+            if (ADMIN_IDS.includes(employeeId)) {
+                showSpecialMessage("你是管理者，沒錢的");
+                return false;
+            }
+            if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
+                showSpecialMessage("查無此員工");
                 return false;
             }
             return true;
@@ -436,9 +461,12 @@
         // 檢查員工號是否存在，若不存在則初始化
         function initializeEmployee(employeeId) {
             if (!validateEmployeeId(employeeId)) {
+                document.getElementById('balance').value = '';
+                document.getElementById('lastDepositTime').textContent = '';
+                document.getElementById('lastWithdrawTime').textContent = '';
                 return false;
             }
-            if (!bankData[employeeId]) {
+            if (ALLOWED_EMPLOYEE_IDS.includes(employeeId) && !bankData[employeeId]) {
                 bankData[employeeId] = { balance: 0 };
                 saveData();
             }
@@ -449,7 +477,7 @@
         function checkBalance() {
             const employeeId = document.getElementById('employeeId').value.trim();
             if (initializeEmployee(employeeId)) {
-                document.getElementById('balance').value = bankData[employeeId].balance;
+                document.getElementById('balance').value = bankData[employeeId] ? bankData[employeeId].balance : 0;
 
                 // 查找最後存款和提款時間
                 let lastDeposit = null;
@@ -480,7 +508,7 @@
                 showError(`請輸入有效的${action === 'deposit' ? '存款' : '提款'}金額`);
                 return;
             }
-            if (action === 'withdraw' && amount > bankData[employeeId].balance) {
+            if (action === 'withdraw' && amount > (bankData[employeeId] ? bankData[employeeId].balance : 0)) {
                 showError("餘額不足");
                 return;
             }
@@ -581,7 +609,7 @@
                 return;
             }
 
-            if (amount > bankData[employeeId].balance) {
+            if (amount > (bankData[employeeId] ? bankData[employeeId].balance : 0)) {
                 showError("餘額不足");
                 return;
             }
