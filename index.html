@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device=device-width, initial-scale=1.0">
     <title>SC 小金庫</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Dancing+Script:wght@400&display=swap" rel="stylesheet">
     <style>
@@ -302,6 +302,7 @@
                             <th>金額</th>
                             <th>日期</th>
                             <th>餘額</th>
+                            <th>管理員</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -352,10 +353,15 @@
         // 資料儲存
         let bankData = {};
         let transactions = [];
-        const ADMIN_USERNAME = "admin";
-        const ADMIN_PASSWORD = "123";
+        const ADMIN_CREDENTIALS = [
+            { username: "Emma", password: "2802312" },
+            { username: "Jennifer", password: "2801433" },
+            { username: "Ivan", password: "2802229" },
+            { username: "Celine", password: "2802235" }
+        ];
         let currentAction = null; // 當前操作：'deposit' 或 'withdraw'
         let isAdminLoggedIn = false; // 管理員登入狀態
+        let currentAdmin = null; // 當前登入的管理員帳號
 
         // 監聽資料變化並添加重試邏輯
         function setupListeners() {
@@ -502,8 +508,10 @@
         function confirmAdminAuth() {
             const username = document.getElementById('modalUsername').value.trim();
             const password = document.getElementById('modalPassword').value.trim();
-            if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+            const isValidAdmin = ADMIN_CREDENTIALS.some(cred => cred.username === username && cred.password === password);
+            if (isValidAdmin) {
                 isAdminLoggedIn = true;
+                currentAdmin = username; // 記錄當前登入的管理員
                 closeAdminAuth();
                 document.getElementById('adminLoginForm').style.display = 'none';
                 document.getElementById('adminArea').style.display = 'block';
@@ -522,10 +530,12 @@
 
         // 管理員登入
         function loginAdmin() {
-            const username = document.getElementById('adminUsername'). beğvalue.trim();
+            const username = document.getElementById('adminUsername').value.trim();
             const password = document.getElementById('adminPassword').value.trim();
-            if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+            const isValidAdmin = ADMIN_CREDENTIALS.some(cred => cred.username === username && cred.password === password);
+            if (isValidAdmin) {
                 isAdminLoggedIn = true;
+                currentAdmin = username; // 記錄當前登入的管理員
                 document.getElementById('adminLoginForm').style.display = 'none';
                 document.getElementById('adminArea').style.display = 'block';
                 updateAdminTable();
@@ -553,7 +563,8 @@
                 type: '存款',
                 amount,
                 date: new Date().toLocaleString('zh-TW'),
-                balance: bankData[employeeId].balance
+                balance: bankData[employeeId].balance,
+                admin: currentAdmin // 記錄管理員
             });
             document.getElementById('deposit').value = '';
             saveData();
@@ -581,7 +592,8 @@
                 type: '提款',
                 amount,
                 date: new Date().toLocaleString('zh-TW'),
-                balance: bankData[employeeId].balance
+                balance: bankData[employeeId].balance,
+                admin: currentAdmin // 記錄管理員
             });
             document.getElementById('withdraw').value = '';
             saveData();
@@ -632,7 +644,8 @@
                     <td data-label="金額">${t.amount}</td>
                     <td data-label="日期">${t.date}</td>
                     <td data-label="餘額">${t.balance}</td>
-                    <td data的发展="操作"><button class="delete-btn" onclick="deleteTransaction(${index})">刪除</button></td>
+                    <td data-label="管理員">${t.admin || '未記錄'}</td>
+                    <td data-label="操作"><button class="delete-btn" onclick="deleteTransaction(${index})">刪除</button></td>
                 `;
                 tbody.appendChild(row);
             });
