@@ -127,6 +127,14 @@
             margin: 5px 0;
             text-align: center;
         }
+        .last-time, .validity-note {
+            font-size: 0.9rem;
+            color: #d81b60;
+            margin-top: 5px;
+            margin-bottom: 12px;
+            text-align: center;
+            animation: slideIn 0.5s ease-out;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -170,13 +178,6 @@
         .modal-content button {
             width: 100%;
             margin: 5px 0;
-        }
-        .validity-note {
-            font-size: 0.9rem;
-            color: #d81b60;
-            margin-top: 5px;
-            display: none;
-            animation: slideIn 0.5s ease-out;
         }
 
         /* 動畫 */
@@ -261,6 +262,8 @@
         <div class="form-group">
             <label for="balance">當前餘額</label>
             <input type="text" id="balance" readonly value="">
+            <p id="lastDepositTime" class="last-time"></p>
+            <p id="lastWithdrawTime" class="last-time"></p>
             <button class="validity-btn" onclick="showValidity()">顯示有效期限</button>
             <p id="validityNote" class="validity-note"></p>
         </div>
@@ -396,11 +399,29 @@
             return true;
         }
 
-        // 查詢餘額
+        // 查詢餘額並顯示最後交易時間
         function checkBalance() {
             const employeeId = document.getElementById('employeeId').value.trim();
             if (initializeEmployee(employeeId)) {
                 document.getElementById('balance').value = bankData[employeeId].balance;
+
+                // 查找最後存款和提款時間
+                let lastDeposit = null;
+                let lastWithdraw = null;
+                for (let i = transactions.length - 1; i >= 0; i--) {
+                    if (transactions[i].employeeId === employeeId) {
+                        if (transactions[i].type === '存款' && !lastDeposit) {
+                            lastDeposit = transactions[i].date;
+                        } else if (transactions[i].type === '提款' && !lastWithdraw) {
+                            lastWithdraw = transactions[i].date;
+                        }
+                        if (lastDeposit && lastWithdraw) break;
+                    }
+                }
+
+                // 更新顯示
+                document.getElementById('lastDepositTime').textContent = lastDeposit ? `最後存款時間：${lastDeposit}` : '最後存款時間：無記錄';
+                document.getElementById('lastWithdrawTime').textContent = lastWithdraw ? `最後提款時間：${lastWithdraw}` : '最後提款時間：無記錄';
             }
         }
 
@@ -487,7 +508,6 @@
             }
 
             bankData[employeeId].balance += amount;
-            document.getElementById('balance').value = bankData[employeeId].balance;
             transactions.push({
                 employeeId,
                 type: '存款',
@@ -498,6 +518,7 @@
             document.getElementById('deposit').value = '';
             saveData();
             updateAdminTable();
+            checkBalance(); // 更新餘額和最後交易時間
         }
 
         // 提款
@@ -517,7 +538,6 @@
             }
 
             bankData[employeeId].balance -= amount;
-            document.getElementById('balance').value = bankData[employeeId].balance;
             transactions.push({
                 employeeId,
                 type: '提款',
@@ -528,6 +548,7 @@
             document.getElementById('withdraw').value = '';
             saveData();
             updateAdminTable();
+            checkBalance(); // 更新餘額和最後交易時間
         }
 
         // 刪除交易記錄
@@ -552,7 +573,7 @@
             // 更新餘額顯示（如果當前顯示的是該員工的餘額）
             const currentEmployeeId = document.getElementById('employeeId').value.trim();
             if (currentEmployeeId === employeeId) {
-                document.getElementById('balance').value = bankData[employeeId].balance || '';
+                checkBalance();
             }
 
             // 保存資料並更新交易表格
