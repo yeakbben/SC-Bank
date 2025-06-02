@@ -189,20 +189,6 @@
             z-index: 1001;
             text-align: center;
         }
-        .firework {
-            position: absolute;
-            width: 50px;
-            height: 50px;
-            background: url('https://www.freeiconspng.com/uploads/fireworks-png-2.png') no-repeat center;
-            background-size: contain;
-            animation: fireworks 2s ease-out forwards;
-            opacity: 0;
-        }
-        @keyframes fireworks {
-            0% { opacity: 0; transform: scale(0) rotate(0deg); }
-            50% { opacity: 1; transform: scale(1.5) rotate(180deg); }
-            100% { opacity: 0; transform: scale(2) rotate(360deg); }
-        }
         .lottery-overlay {
             display: none;
             position: fixed;
@@ -212,6 +198,20 @@
             height: 100%;
             background: rgba(0,0,0,0.5);
             z-index: 1000;
+        }
+        .firework {
+            position: fixed;
+            width: 80px;
+            height: 80px;
+            background: url('https://www.pngall.com/wp-content/uploads/5/Firework-PNG-Image.png') no-repeat center;
+            background-size: contain;
+            animation: fireworks 1s ease-out forwards;
+            opacity: 0;
+        }
+        @keyframes fireworks {
+            0% { opacity: 0; transform: scale(0) rotate(0deg); }
+            50% { opacity: 1; transform: scale(1.5) rotate(180deg); }
+            100% { opacity: 0; transform: scale(2) rotate(360deg); }
         }
         table {
             width: 100%;
@@ -463,7 +463,6 @@
     <div class="lottery-overlay" id="lotteryOverlay"></div>
     <div class="lottery-result" id="lotteryResultModal">
         <p id="lotteryResultText"></p>
-        <div id="fireworkContainer" class="firework"></div>
         <button onclick="closeLotteryResult()">關閉</button>
     </div>
 
@@ -1045,14 +1044,15 @@
             lotteryResultModal.style.display = 'block';
             document.getElementById('lotteryResultText').textContent = `恭喜您抽中 ${prize} 元！`;
 
-            // 添加煙火動畫
-            const fireworkContainer = document.getElementById('fireworkContainer');
-            fireworkContainer.style.opacity = 1;
-            fireworkContainer.style.left = '50%';
-            fireworkContainer.style.top = '50%';
-            setTimeout(() => {
-                fireworkContainer.style.opacity = 0;
-            }, 2000); // 2秒後消失
+            // 動態生成多個煙火
+            const numberOfFireworks = 5;
+            for (let i = 0; i < numberOfFireworks; i++) {
+                const firework = document.createElement('div');
+                firework.className = 'firework';
+                firework.style.left = `${Math.random() * 100}%`; // 隨機水平位置
+                firework.style.top = `${Math.random() * 100}%`;  // 隨機垂直位置
+                document.body.appendChild(firework);
+            }
 
             try {
                 const depositDate = new Date();
@@ -1094,7 +1094,9 @@
             lotteryOverlay.style.display = 'none';
             lotteryResultModal.style.display = 'none';
             document.getElementById('lotteryResultText').textContent = '';
-            document.getElementById('fireworkContainer').style.opacity = 0; // 重置煙火
+            // 移除所有煙火元素
+            const fireworks = document.querySelectorAll('.firework');
+            fireworks.forEach(firework => firework.remove());
         }
 
         function exportTransactionsToExcel() {
