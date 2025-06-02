@@ -191,7 +191,7 @@
             font-size: 1rem;
             color: #6b4e71;
         }
-        .last-time, .validity-note, .special-message, .lottery-chances {
+        .last-time, .validity-note, .special-message, .lottery-chances, .no-records {
             font-size: 0.9rem;
             color: #d81b60;
             margin-top: 5px;
@@ -243,7 +243,7 @@
             margin-top: 15px;
             font-size: 0.9rem;
             background-color: #fff;
-            display: none; /* 預設隱藏 */
+            display: none;
         }
         th, td {
             border: 1px solid #f4c2c2;
@@ -444,6 +444,7 @@
                     <button class="filter-btn" onclick="filterTransactions()">過濾</button>
                 </div>
                 <button class="toggle-btn" onclick="toggleTransactions()">展開交易記錄</button>
+                <p id="noRecords" class="no-records" style="display: none;">無符合條件的交易記錄</p>
                 <table id="transactionTable">
                     <thead>
                         <tr>
@@ -542,7 +543,7 @@
                     if (isEmployeeLoggedIn) checkBalance();
                     if (isAdminLoggedIn) checkAdminBalance();
                     updateLotteryChances();
-                    retryCount = 0; // 重置重試計數
+                    retryCount = 0;
                 }, (error) => {
                     console.error("Error loading bankData:", error.message);
                     retryCount++;
@@ -561,7 +562,7 @@
                     updateAdminTable();
                     if (isEmployeeLoggedIn) checkBalance();
                     if (isAdminLoggedIn) checkAdminBalance();
-                    retryCount = 0; // 重置重試計數
+                    retryCount = 0;
                 }, (error) => {
                     console.error("Error loading transactions:", error.message);
                     retryCount++;
@@ -652,7 +653,7 @@
                 document.getElementById('employeeId').value = employeeId;
                 closeEmployeeLogin();
                 showPage('employeePage');
-                checkBalance(); // 自動查詢餘額
+                checkBalance();
             }
         }
 
@@ -675,7 +676,7 @@
                 currentAdmin = username;
                 closeAdminLogin();
                 showPage('adminPage');
-                document.getElementById('transactionTable').style.display = 'none'; // 確保交易紀錄收合
+                document.getElementById('transactionTable').style.display = 'none';
                 updateAdminTable();
             } else {
                 showError("管理員帳號或密碼錯誤");
@@ -760,7 +761,7 @@
                 }
                 totalBalance += deposit.amount;
                 return deposit;
-            }).filter(deposit => deposit.amount > 0); // 移除金額為 0 的存款
+            }).filter(deposit => deposit.amount > 0);
             bankData[employeeId].deposits = updatedDeposits;
             return totalBalance;
         }
@@ -1050,7 +1051,17 @@
 
         function updateAdminTable(filteredTransactions = transactions) {
             const tbody = document.getElementById('transactionBody');
+            const noRecords = document.getElementById('noRecords');
             tbody.innerHTML = '';
+            
+            if (!filteredTransactions || filteredTransactions.length === 0) {
+                noRecords.style.display = 'block';
+                document.getElementById('transactionTable').style.display = 'none';
+                document.querySelector('.toggle-btn').textContent = '展開交易記錄';
+                return;
+            }
+
+            noRecords.style.display = 'none';
             filteredTransactions.forEach((t, index) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -1070,10 +1081,16 @@
             const filterEmployeeId = document.getElementById('filterEmployeeId').value.trim();
             const filterDate = document.getElementById('filterDate').value;
 
-            let filteredTransactions = transactions;
+            if (!transactions || transactions.length === 0) {
+                showSuccessMessage("目前無交易記錄可過濾");
+                return;
+            }
+
+            let filteredTransactions = [...transactions];
 
             if (filterEmployeeId) {
-                filteredTransactions = filteredTransactions.filter(t => t.employeeId === filterEmployeeId);
+                filteredTransactions = filteredTransactions.filter(t => String(t.employeeId).trim() === filterEmployeeId);
+                console.log(`Filtering by employeeId: ${filterEmployeeId}, Result count: ${filteredTransactions.length}`);
             }
 
             if (filterDate) {
@@ -1090,11 +1107,18 @@
                     });
                     return transactionDate === selectedDate;
                 });
+                console.log(`Filtering by date: ${selectedDate}, Result count: ${filteredTransactions.length}`);
             }
 
             updateAdminTable(filteredTransactions);
-            document.getElementById('transactionTable').style.display = 'table';
-            document.querySelector('.toggle-btn').textContent = '收合交易記錄';
+            if (filteredTransactions.length > 0 || (filterEmployeeId || filterDate)) {
+                document.getElementById('transactionTable').style.display = 'table';
+                document.querySelector('.toggle-btn').textContent = '收合交易記錄';
+            } else {
+                document.getElementById('transactionTable').style.display = 'none';
+                document.querySelector('.toggle-btn').textContent = '展開交易記錄';
+                showSuccessMessage("無符合條件的交易記錄");
+            }
         }
 
         function toggleTransactions() {
@@ -1102,8 +1126,10 @@
             const button = document.querySelector('.toggle-btn');
             if (table.style.display === 'none' || table.style.display === '') {
                 updateAdminTable();
-                table.style.display = 'table';
-                button.textContent = '收合交易記錄';
+                if (transactions.length > 0) {
+                    table.style.display = 'table';
+                    button.textContent = '收合交易記錄';
+                }
             } else {
                 table.style.display = 'none';
                 button.textContent = '展開交易記錄';
