@@ -181,13 +181,14 @@
             position: fixed;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%) scale(1);
             background: #fff;
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 0 15px rgba(0,0,0,0.3);
             z-index: 1001;
             text-align: center;
+            animation: popOut 0.5s ease-out forwards;
         }
         .lottery-overlay {
             display: none;
@@ -199,28 +200,18 @@
             background: rgba(0,0,0,0.5);
             z-index: 1000;
         }
-        .firework {
-            position: fixed;
-            width: 100px;
-            height: 100px;
-            background: url('https://www.pngall.com/wp-content/uploads/5/Firework-PNG-Image.png') no-repeat center;
-            background-size: contain;
-            z-index: 1002; /* 確保在模態框之上 */
-            animation: fireworks 1s ease-out forwards;
-            transform-origin: center;
-        }
-        @keyframes fireworks {
+        @keyframes popOut {
             0% {
-                opacity: 1;
-                transform: scale(0) rotate(0deg);
+                transform: translate(-50%, -50%) scale(0.3);
+                opacity: 0;
             }
-            50% {
+            80% {
+                transform: translate(-50%, -50%) scale(1.1);
                 opacity: 1;
-                transform: scale(1.2) rotate(180deg);
             }
             100% {
-                opacity: 0;
-                transform: scale(1.5) rotate(360deg);
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
             }
         }
         table {
@@ -1054,19 +1045,6 @@
             lotteryResultModal.style.display = 'block';
             document.getElementById('lotteryResultText').textContent = `恭喜您抽中 ${prize} 元！`;
 
-            // 動態生成多個煙火
-            const numberOfFireworks = 5;
-            for (let i = 0; i < numberOfFireworks; i++) {
-                const firework = document.createElement('div');
-                firework.className = 'firework';
-                const randomScale = 0.8 + Math.random() * 0.4; // 隨機縮放 0.8~1.2
-                firework.style.left = `${Math.random() * 100}%`;
-                firework.style.top = `${Math.random() * 100}%`;
-                firework.style.transform = `scale(${randomScale})`;
-                document.body.appendChild(firework);
-                console.log(`Firework ${i + 1} created at left: ${firework.style.left}, top: ${firework.style.top}`);
-            }
-
             try {
                 const depositDate = new Date();
                 const expiryDate = new Date(depositDate);
@@ -1107,10 +1085,6 @@
             lotteryOverlay.style.display = 'none';
             lotteryResultModal.style.display = 'none';
             document.getElementById('lotteryResultText').textContent = '';
-            // 移除所有煙火元素
-            const fireworks = document.querySelectorAll('.firework');
-            console.log(`Removing ${fireworks.length} fireworks`);
-            fireworks.forEach(firework => firework.remove());
         }
 
         function exportTransactionsToExcel() {
