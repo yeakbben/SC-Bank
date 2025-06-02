@@ -151,6 +151,12 @@
         .toggle-btn:hover, .toggle-btn:active {
             background: linear-gradient(45deg, #4b304f, #3b203f);
         }
+        .back-btn {
+            background: linear-gradient(45deg, #6c757d, #5a6268);
+        }
+        .back-btn:hover, .back-btn:active {
+            background: linear-gradient(45deg, #5a6268, #4e555b);
+        }
         .admin-section {
             margin-top: 15px;
             padding-top: 15px;
@@ -365,7 +371,7 @@
         <div id="adminPage" class="page">
             <div class="admin-section">
                 <h2>管理員專區</h2>
-                <div classT id="successMessage" class="success"></div>
+                <div id="successMessage" class="success"></div>
                 <div class="form-group">
                     <label for="adminQueryEmployeeId">查詢員工號</label>
                     <input type="text" id="adminQueryEmployeeId" placeholder="請輸入員工號" oninput="syncEmployeeId()">
@@ -379,12 +385,14 @@
                 <div class="form-group">
                     <label for="adminDeposit">存款金額</label>
                     <input type="number" id="adminDeposit" min="0" placeholder="請輸入存款金額">
-                    <button onclick="handleAdminAction('deposit')">存款</button>
+                    <button onclick="handleDeposit()">存款</button>
+                    <button class="back-btn" onclick="restorePreviousBalance()">返回</button>
                 </div>
                 <div class="form-group">
                     <label for="adminWithdraw">提款金額</label>
                     <input type="number" id="adminWithdraw" min="0" placeholder="請輸入提款金額">
-                    <button onclick="handleAdminAction('withdraw')">提款</button>
+                    <button onclick="handleWithdraw()">提款</button>
+                    <button class="back-btn" onclick="restorePreviousBalance()">返回</button>
                 </div>
                 <div class="form-group">
                     <label for="setLotteryEmployeeId">設定抽獎次數的員工號</label>
@@ -445,23 +453,6 @@
         </div>
     </div>
 
-    <!-- 存款/提款時的管理員驗證模態框 -->
-    <div id="adminAuthModal" class="modal">
-        <div class="modal-content">
-            <h3>管理員驗證</h3>
-            <div class="form-group">
-                <label for="modalUsername">管理員帳號</label>
-                <input type="text" id="modalUsername" placeholder="請輸入管理員帳號">
-            </div>
-            <div class="form-group">
-                <label for="modalPassword">管理員密碼</label>
-                <input type="password" id="modalPassword" placeholder="請輸入管理員密碼">
-            </div>
-            <button onclick="confirmAdminAuth()">確認</button>
-            <button onclick="closeAdminAuth()">取消</button>
-        </div>
-    </div>
-
     <!-- 抽獎結果模態框 -->
     <div class="lottery-overlay" id="lotteryOverlay"></div>
     <div class="lottery-result" id="lotteryResultModal">
@@ -497,7 +488,7 @@
             { username: "Celine", password: "2235" }
         ];
         const ADMIN_IDS = ["2802312", "2801433", "2802229", "2802235"];
-        let currentAction = null;
+        let previousBalance = null; // 儲存上一次餘額
         let isAdminLoggedIn = false;
         let currentAdmin = null;
         let isEmployeeLoggedIn = false;
@@ -633,6 +624,7 @@
             isAdminLoggedIn = false;
             currentEmployee = null;
             currentAdmin = null;
+            previousBalance = null;
             document.getElementById('employeeId').value = '';
             document.getElementById('adminQueryEmployeeId').value = '';
             document.getElementById('setLotteryEmployeeId').value = '';
@@ -739,6 +731,7 @@
             const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
             if (await initializeEmployee(employeeId)) {
                 const balance = calculateBalance(employeeId);
+                previousBalance = balance; // 儲存當前餘額
                 document.getElementById('adminBalance').value = balance;
                 const chances = bankData[employeeId]?.lotteryChances || 0;
                 document.getElementById('adminLotteryChances').textContent = `剩餘抽獎次數：${chances}`;
@@ -751,54 +744,11 @@
             document.getElementById('setLotteryEmployeeId').value = adminQueryEmployeeId;
         }
 
-        async function handleAdminAction(action) {
+        async function handleDeposit() {
             if (!isAdminLoggedIn) {
                 showError("請先以管理員身分登入");
                 return;
             }
-            const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
-            if (!await initializeEmployee(employeeId)) return;
-            const amount = parseFloat(document.getElementById(`admin${action.charAt(0).toUpperCase() + action.slice(1)}`).value);
-            if (isNaN(amount) || amount <= 0) {
-                showError(`請輸入有效的${action === 'deposit' ? '存款' : '提款'}金額`);
-                return;
-            }
-            const balance = calculateBalance(employeeId);
-            if (action === 'withdraw' && amount > balance) {
-                showError("餘額不足");
-                return;
-            }
-            currentAction = action;
-            document.getElementById('adminAuthModal').style.display = 'flex';
-            document.getElementById('modalUsername').value = '';
-            document.getElementById('modalPassword').value = '';
-        }
-
-        function closeAdminAuth() {
-            document.getElementById('adminAuthModal').style.display = 'none';
-            currentAction = null;
-        }
-
-        function confirmAdminAuth() {
-            const username = document.getElementById('modalUsername').value.trim();
-            const password = document.getElementById('modalPassword').value.trim();
-            const isValidAdmin = ADMIN_CREDENTIALS.some(cred => cred.username === username && cred.password === password);
-            if (isValidAdmin) {
-                currentAdmin = username;
-                closeAdminAuth();
-                if (currentAction === 'deposit') {
-                    handleDeposit();
-                } else if (currentAction === 'withdraw') {
-                    handleWithdraw();
-                }
-            } else {
-                showError("管理員帳號或密碼錯誤");
-                document.getElementById('modalUsername').value = '';
-                document.getElementById('modalPassword').value = '';
-            }
-        }
-
-        async function handleDeposit() {
             const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
             const amount = parseFloat(document.getElementById('adminDeposit').value);
             if (!await initializeEmployee(employeeId)) return;
@@ -821,7 +771,7 @@
                     bankData[employeeId].deposits = [];
                 }
                 bankData[employeeId].deposits.push(deposit);
-                await saveData(); // 確保資料保存到 Firebase
+                await saveData();
                 await push(ref(db, 'transactions'), {
                     employeeId,
                     type: '存款',
@@ -832,7 +782,7 @@
                 });
                 document.getElementById('adminDeposit').value = '';
                 showSuccessMessage("存款成功！");
-                await checkAdminBalance(); // 確保 UI 更新
+                await checkAdminBalance();
             } catch (error) {
                 console.error("Error during deposit:", error.message);
                 if (error.code === 'PERMISSION_DENIED') {
@@ -840,7 +790,6 @@
                 } else {
                     showError(`存款失敗: ${error.message}`);
                 }
-                // 回滾存款操作
                 bankData[employeeId].deposits = bankData[employeeId].deposits.filter(d => d.depositDate !== deposit.depositDate);
                 await saveData();
                 await checkAdminBalance();
@@ -848,6 +797,10 @@
         }
 
         async function handleWithdraw() {
+            if (!isAdminLoggedIn) {
+                showError("請先以管理員身分登入");
+                return;
+            }
             const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
             let amount = parseFloat(document.getElementById('adminWithdraw').value);
             if (!await initializeEmployee(employeeId)) return;
@@ -883,7 +836,7 @@
                     }
                 }
                 bankData[employeeId].deposits = updatedDeposits.filter(d => d.amount > 0);
-                await saveData(); // 確保資料保存到 Firebase
+                await saveData();
                 await push(ref(db, 'transactions'), {
                     employeeId,
                     type: '提款',
@@ -894,7 +847,7 @@
                 });
                 document.getElementById('adminWithdraw').value = '';
                 showSuccessMessage("提款成功！");
-                await checkAdminBalance(); // 確保 UI 更新
+                await checkAdminBalance();
             } catch (error) {
                 console.error("Error during withdraw:", error.message);
                 if (error.code === 'PERMISSION_DENIED') {
@@ -903,6 +856,18 @@
                     showError(`提款失敗: ${error.message}`);
                 }
                 await checkAdminBalance();
+            }
+        }
+
+        function restorePreviousBalance() {
+            if (previousBalance !== null) {
+                const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
+                if (employeeId && bankData[employeeId]) {
+                    document.getElementById('adminBalance').value = previousBalance;
+                    showSuccessMessage("已恢復至上一次餘額！");
+                }
+            } else {
+                showError("無上一次餘額紀錄！");
             }
         }
 
@@ -1163,9 +1128,9 @@
         window.logout = logout;
         window.checkBalance = checkBalance;
         window.checkAdminBalance = checkAdminBalance;
-        window.handleAdminAction = handleAdminAction;
-        window.closeAdminAuth = closeAdminAuth;
-        window.confirmAdminAuth = confirmAdminAuth;
+        window.handleDeposit = handleDeposit;
+        window.handleWithdraw = handleWithdraw;
+        window.restorePreviousBalance = restorePreviousBalance;
         window.showValidity = showValidity;
         window.deleteTransaction = deleteTransaction;
         window.setLotteryChances = setLotteryChances;
