@@ -515,6 +515,13 @@
             { username: "Celine", password: "2235" }
         ];
         const ADMIN_IDS = ["2802312", "2801433", "2802229", "2802235"];
+        const ALLOWED_EMPLOYEE_IDS = [
+            "10011985", "2801937", "2802155", "10014584", "2803219", 
+            "10014576", "10012088", "2802301", "2802862", "2802670", 
+            "10014567", "2803297", "10015181", "2802269", "10013395", 
+            "2804007", "10014339", "10014378", "2802663",
+            ...ADMIN_IDS // 包含管理員 ID
+        ];
         let isAdminLoggedIn = false;
         let currentAdmin = null;
         let isEmployeeLoggedIn = false;
@@ -522,42 +529,77 @@
         let retryCount = 0;
         const MAX_RETRIES = 3;
 
+        // 初始化資料庫，將所有數據歸零（僅執行一次）
+        function initializeDatabase() {
+            set(ref(db, 'bankData'), {}).then(() => {
+                console.log("bankData 已歸零");
+            }).catch((error) => {
+                console.error("歸零 bankData 失敗:", error.message);
+                showError("初始化資料庫失敗，請聯繫管理員");
+            });
+
+            remove(ref(db, 'transactions')).then(() => {
+                console.log("transactions 已歸零");
+            }).catch((error) => {
+                console.error("歸零 transactions 失敗:", error.message);
+                showError("初始化資料庫失敗，請聯繫管理員");
+            });
+
+            // 確保 accessKey 存在
+            set(ref(db, 'accessKey'), "scbank2025").then(() => {
+                console.log("accessKey 已設置");
+            }).catch((error) => {
+                console.error("設置 accessKey 失敗:", error.message);
+            });
+        }
+
         function setupListeners() {
             try {
-                onValue(ref(db, 'bankData'), (snapshot) => {
-                    bankData = snapshot.val() || {};
-                    if (isEmployeeLoggedIn) checkBalance();
-                    if (isAdminLoggedIn) checkAdminBalance();
-                    updateLotteryChances();
-                    retryCount = 0;
-                }, (error) => {
-                    console.error("Error loading bankData:", error.message);
-                    retryCount++;
-                    if (retryCount < MAX_RETRIES) {
-                        showError(`資料庫錯誤 (bankData): ${error.message}，${MAX_RETRIES - retryCount} 次後停止重試`);
-                        setTimeout(setupListeners, 5000);
-                    } else {
-                        showError(`資料庫連線失敗，已達最大重試次數 (${MAX_RETRIES})，請聯繫管理員`);
+                get(ref(db, 'accessKey')).then((snapshot) => {
+                    const accessKey = snapshot.val();
+                    if (accessKey !== "scbank2025") {
+                        showError("資料庫訪問密碼錯誤，請聯繫管理員");
+                        return;
                     }
-                });
 
-                onValue(ref(db, 'transactions'), (snapshot) => {
-                    const data = snapshot.val();
-                    transactions = data ? Object.values(data) : [];
-                    transactionKeys = data ? Object.keys(data) : [];
-                    updateAdminTable();
-                    if (isEmployeeLoggedIn) checkBalance();
-                    if (isAdminLoggedIn) checkAdminBalance();
-                    retryCount = 0;
-                }, (error) => {
-                    console.error("Error loading transactions:", error.message);
-                    retryCount++;
-                    if (retryCount < MAX_RETRIES) {
-                        showError(`資料庫錯誤 (transactions): ${error.message}，${MAX_RETRIES - retryCount} 次後停止重試`);
-                        setTimeout(setupListeners, 5000);
-                    } else {
-                        showError(`資料庫連線失敗，已達最大重試次數 (${MAX_RETRIES})，請聯繫管理員`);
-                    }
+                    onValue(ref(db, 'bankData'), (snapshot) => {
+                        bankData = snapshot.val() || {};
+                        if (isEmployeeLoggedIn) checkBalance();
+                        if (isAdminLoggedIn) checkAdminBalance();
+                        updateLotteryChances();
+                        retryCount = 0;
+                    }, (error) => {
+                        console.error("Error loading bankData:", error.message);
+                        retryCount++;
+                        if (retryCount < MAX_RETRIES) {
+                            showError(`資料庫錯誤 (bankData): ${error.message}，${MAX_RETRIES - retryCount} 次後停止重試`);
+                            setTimeout(setupListeners, 5000);
+                        } else {
+                            showError(`資料庫連線失敗，已達最大重試次數 (${MAX_RETRIES})，請聯繫管理員`);
+                        }
+                    });
+
+                    onValue(ref(db, 'transactions'), (snapshot) => {
+                        const data = snapshot.val();
+                        transactions = data ? Object.values(data) : [];
+                        transactionKeys = data ? Object.keys(data) : [];
+                        updateAdminTable();
+                        if (isEmployeeLoggedIn) checkBalance();
+                        if (isAdminLoggedIn) checkAdminBalance();
+                        retryCount = 0;
+                    }, (error) => {
+                        console.error("Error loading transactions:", error.message);
+                        retryCount++;
+                        if (retryCount < MAX_RETRIES) {
+                            showError(`資料庫錯誤 (transactions): ${error.message}，${MAX_RETRIES - retryCount} 次後停止重試`);
+                            setTimeout(setupListeners, 5000);
+                        } else {
+                            showError(`資料庫連線失敗，已達最大重試次數 (${MAX_RETRIES})，請聯繫管理員`);
+                        }
+                    });
+                }).catch((error) => {
+                    showError("無法驗證資料庫訪問密碼，請檢查網路連線");
+                    console.error("Error checking accessKey:", error.message);
                 });
             } catch (e) {
                 console.error("Setup listeners failed:", e.message);
@@ -570,6 +612,9 @@
                 }
             }
         }
+
+        // 啟動時執行初始化
+        initializeDatabase();
         setupListeners();
 
         async function saveData() {
@@ -693,6 +738,10 @@
                 showError("員工號必須為7或8位數字");
                 return false;
             }
+            if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
+                showError("查無此員工");
+                return false;
+            }
             if (ADMIN_IDS.includes(employeeId)) {
                 hint.textContent = "你是管理者，沒錢的";
                 hint.style.display = 'block';
@@ -704,6 +753,10 @@
         }
 
         async function initializeEmployee(employeeId) {
+            if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
+                showError("查無此員工");
+                return false;
+            }
             if (!validateEmployeeId(employeeId)) {
                 if (isEmployeeLoggedIn) {
                     document.getElementById('balance').value = '';
@@ -778,6 +831,12 @@
 
         async function checkAdminBalance() {
             const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
+            if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
+                showError("查無此員工");
+                document.getElementById('adminBalance').value = '';
+                document.getElementById('adminLotteryChances').textContent = '';
+                return;
+            }
             if (await initializeEmployee(employeeId)) {
                 const balance = calculateBalance(employeeId);
                 document.getElementById('adminBalance').value = balance;
@@ -799,6 +858,10 @@
             }
             const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
             const amount = parseFloat(document.getElementById('adminDeposit').value);
+            if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
+                showError("查無此員工");
+                return;
+            }
             if (!await initializeEmployee(employeeId)) return;
 
             if (isNaN(amount) || amount <= 0) {
@@ -851,6 +914,10 @@
             }
             const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
             let amount = parseFloat(document.getElementById('adminWithdraw').value);
+            if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
+                showError("查無此員工");
+                return;
+            }
             if (!await initializeEmployee(employeeId)) return;
 
             if (isNaN(amount) || amount <= 0) {
@@ -995,6 +1062,10 @@
             const employeeId = document.getElementById('setLotteryEmployeeId').value.trim();
             const chances = parseInt(document.getElementById('lotteryChancesInput').value);
             
+            if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
+                showError("查無此員工");
+                return;
+            }
             if (!validateEmployeeId(employeeId)) return;
             if (isNaN(chances) || chances < 0) {
                 showError("請輸入有效的抽獎次數");
