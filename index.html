@@ -354,7 +354,7 @@
                 <h2>管理員專區</h2>
                 <div class="form-group">
                     <label for="adminQueryEmployeeId">查詢員工號</label>
-                    <input type="text" id="adminQueryEmployeeId" placeholder="請輸入員工號">
+                    <input type="text" id="adminQueryEmployeeId" placeholder="請輸入員工號" oninput="syncEmployeeId()">
                     <button class="query-btn" onclick="checkAdminBalance()">查詢餘額</button>
                 </div>
                 <div class="form-group">
@@ -363,8 +363,18 @@
                     <p id="adminLotteryChances" class="lottery-chances"></p>
                 </div>
                 <div class="form-group">
+                    <label for="adminDeposit">存款金額</label>
+                    <input type="number" id="adminDeposit" min="0" placeholder="請輸入存款金額">
+                    <button onclick="handleAdminAction('deposit')">存款</button>
+                </div>
+                <div class="form-group">
+                    <label for="adminWithdraw">提款金額</label>
+                    <input type="number" id="adminWithdraw" min="0" placeholder="請輸入提款金額">
+                    <button onclick="handleAdminAction('withdraw')">提款</button>
+                </div>
+                <div class="form-group">
                     <label for="setLotteryEmployeeId">設定抽獎次數的員工號</label>
-                    <input type="text" id="setLotteryEmployeeId" placeholder="請輸入員工號">
+                    <input type="text" id="setLotteryEmployeeId" readonly>
                     <label for="lotteryChancesInput">抽獎次數</label>
                     <input type="number" id="lotteryChancesInput" min="0" placeholder="請輸入抽獎次數">
                     <button onclick="setLotteryChances()">設定抽獎次數</button>
@@ -604,6 +614,7 @@
             currentAdmin = null;
             document.getElementById('employeeId').value = '';
             document.getElementById('adminQueryEmployeeId').value = '';
+            document.getElementById('setLotteryEmployeeId').value = '';
             document.getElementById('balance').value = '';
             document.getElementById('adminBalance').value = '';
             document.getElementById('lastDepositTime').textContent = '';
@@ -714,10 +725,19 @@
             }
         }
 
-        async function handleAction(action) {
-            const employeeId = document.getElementById('employeeId').value.trim();
+        function syncEmployeeId() {
+            const adminQueryEmployeeId = document.getElementById('adminQueryEmployeeId').value.trim();
+            document.getElementById('setLotteryEmployeeId').value = adminQueryEmployeeId;
+        }
+
+        async function handleAdminAction(action) {
+            if (!isAdminLoggedIn) {
+                showError("請先以管理員身分登入");
+                return;
+            }
+            const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
             if (!await initializeEmployee(employeeId)) return;
-            const amount = parseFloat(document.getElementById(action).value);
+            const amount = parseFloat(document.getElementById(`admin${action.charAt(0).toUpperCase() + action.slice(1)}`).value);
             if (isNaN(amount) || amount <= 0) {
                 showError(`請輸入有效的${action === 'deposit' ? '存款' : '提款'}金額`);
                 return;
@@ -739,7 +759,7 @@
         }
 
         function confirmAdminAuth() {
-            const username = document.getElementById('modalUsername W').value.trim();
+            const username = document.getElementById('modalUsername').value.trim();
             const password = document.getElementById('modalPassword').value.trim();
             const isValidAdmin = ADMIN_CREDENTIALS.some(cred => cred.username === username && cred.password === password);
             if (isValidAdmin) {
@@ -755,8 +775,8 @@
         }
 
         async function handleDeposit() {
-            const employeeId = document.getElementById('employeeId').value.trim();
-            const amount = parseFloat(document.getElementById('deposit').value);
+            const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
+            const amount = parseFloat(document.getElementById('adminDeposit').value);
             if (!await initializeEmployee(employeeId)) return;
 
             if (isNaN(amount) || amount <= 0) {
@@ -784,9 +804,9 @@
                     admin: currentAdmin
                 });
                 await saveData();
-                document.getElementById('deposit').value = '';
-                await checkBalance();
-                showSpecialMessage("存款成功！");
+                document.getElementById('adminDeposit').value = '';
+                await checkAdminBalance();
+                showError("存款成功！");
             } catch (error) {
                 console.error("Error during deposit:", error.message);
                 if (error.code === 'PERMISSION_DENIED') {
@@ -795,13 +815,13 @@
                     showError(`存款失敗: ${error.message}`);
                 }
                 bankData[employeeId].deposits = bankData[employeeId].deposits.filter(d => d.depositDate !== deposit.depositDate);
-                await checkBalance();
+                await checkAdminBalance();
             }
         }
 
         async function handleWithdraw() {
-            const employeeId = document.getElementById('employeeId').value.trim();
-            let amount = parseFloat(document.getElementById('withdraw').value);
+            const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
+            let amount = parseFloat(document.getElementById('adminWithdraw').value);
             if (!await initializeEmployee(employeeId)) return;
 
             if (isNaN(amount) || amount <= 0) {
@@ -845,9 +865,9 @@
                     admin: currentAdmin
                 });
                 await saveData();
-                document.getElementById('withdraw').value = '';
-                await checkBalance();
-                showSpecialMessage("提款成功！");
+                document.getElementById('adminWithdraw').value = '';
+                await checkAdminBalance();
+                showError("提款成功！");
             } catch (error) {
                 console.error("Error during withdraw:", error.message);
                 if (error.code === 'PERMISSION_DENIED') {
@@ -855,7 +875,7 @@
                 } else {
                     showError(`提款失敗: ${error.message}`);
                 }
-                await checkBalance();
+                await checkAdminBalance();
             }
         }
 
@@ -927,7 +947,7 @@
                 await saveData();
                 const currentEmployeeId = document.getElementById('adminQueryEmployeeId').value.trim();
                 if (currentEmployeeId === employeeId) await checkAdminBalance();
-                showSpecialMessage("交易記錄刪除成功！");
+                showError("交易記錄刪除成功！");
             } catch (error) {
                 console.error("Error deleting transaction:", error.message);
                 if (error.code === 'PERMISSION_DENIED') {
@@ -962,7 +982,7 @@
                 await saveData();
                 document.getElementById('setLotteryEmployeeId').value = '';
                 document.getElementById('lotteryChancesInput').value = '';
-                showSpecialMessage(`已為員工 ${employeeId} 設定 ${chances} 次抽獎機會！`);
+                showError(`已為員工 ${employeeId} 設定 ${chances} 次抽獎機會！`);
                 const currentEmployeeId = document.getElementById('adminQueryEmployeeId').value.trim();
                 if (currentEmployeeId === employeeId) checkAdminBalance();
             } catch (error) {
@@ -1104,7 +1124,7 @@
         window.logout = logout;
         window.checkBalance = checkBalance;
         window.checkAdminBalance = checkAdminBalance;
-        window.handleAction = handleAction;
+        window.handleAdminAction = handleAdminAction;
         window.closeAdminAuth = closeAdminAuth;
         window.confirmAdminAuth = confirmAdminAuth;
         window.showValidity = showValidity;
@@ -1113,6 +1133,7 @@
         window.performLottery = performLottery;
         window.closeLotteryResult = closeLotteryResult;
         window.exportTransactionsToExcel = exportTransactionsToExcel;
+        window.syncEmployeeId = syncEmployeeId;
     </script>
 </body>
 </html>
