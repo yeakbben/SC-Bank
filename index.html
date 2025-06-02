@@ -30,6 +30,11 @@
             opacity: 0.1;
             z-index: -1;
         }
+        @supports not (background-image: url()) {
+            body::before {
+                background-color: #f8e1e9;
+            }
+        }
         h1 {
             font-family: 'Playfair Display', serif;
             color: #fff;
@@ -84,7 +89,7 @@
             font-size: 1.2rem;
             color: #6b4e71;
         }
-        input[type="text"], input[type="number"], input[type="password"] {
+        input[type="text"], input[type="number"], input[type="password"], input[type="date"] {
             width: 100%;
             padding: 10px;
             border: 1px solid #f4c2c2;
@@ -151,22 +156,40 @@
         .toggle-btn:hover, .toggle-btn:active {
             background: linear-gradient(45deg, #4b304f, #3b203f);
         }
+        .filter-btn {
+            background: linear-gradient(45deg, #17a2b8, #138496);
+        }
+        .filter-btn:hover, .filter-btn:active {
+            background: linear-gradient(45deg, #138496, #117a8b);
+        }
         .admin-section {
             margin-top: 15px;
             padding-top: 15px;
             border-top: 2px dashed #f4c2c2;
         }
-        .error {
-            color: #d81b60;
+        .error, .success {
+            position: relative;
+            padding: 10px;
             font-size: 0.9rem;
             margin: 5px 0;
             text-align: center;
         }
+        .error {
+            color: #d81b60;
+        }
         .success {
             color: #28a745;
-            font-size: 0.9rem;
-            margin: 5px 0;
-            text-align: center;
+        }
+        .error button, .success button {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #6b4e71;
         }
         .last-time, .validity-note, .special-message, .lottery-chances {
             font-size: 0.9rem;
@@ -327,12 +350,15 @@
             .container {
                 padding: 10px;
             }
-            input[type="text"], input[type="number"], input[type="password"] {
+            input[type="text"], input[type="number"], input[type="password"], input[type="date"] {
                 padding: 8px;
+                font-size: 0.9rem;
             }
             button {
-                padding: 10px;
+                padding: 8px;
                 min-width: 100px;
+                font-size: 0.9rem;
+                margin: 5px;
             }
         }
     </style>
@@ -410,6 +436,13 @@
                 </div>
                 <button class="export-btn" onclick="exportTransactionsToExcel()">匯出交易記錄為 Excel</button>
                 <h3>所有交易記錄</h3>
+                <div class="form-group">
+                    <label for="filterEmployeeId">過濾員工號</label>
+                    <input type="text" id="filterEmployeeId" placeholder="輸入員工號以過濾">
+                    <label for="filterDate">過濾日期</label>
+                    <input type="date" id="filterDate">
+                    <button class="filter-btn" onclick="filterTransactions()">過濾</button>
+                </div>
                 <button class="toggle-btn" onclick="toggleTransactions()">展開交易記錄</button>
                 <table id="transactionTable">
                     <thead>
@@ -499,6 +532,8 @@
         let currentAdmin = null;
         let isEmployeeLoggedIn = false;
         let currentEmployee = null;
+        let retryCount = 0;
+        const MAX_RETRIES = 3;
 
         function setupListeners() {
             try {
@@ -507,10 +542,16 @@
                     if (isEmployeeLoggedIn) checkBalance();
                     if (isAdminLoggedIn) checkAdminBalance();
                     updateLotteryChances();
+                    retryCount = 0; // 重置重試計數
                 }, (error) => {
                     console.error("Error loading bankData:", error.message);
-                    showError(`資料庫錯誤 (bankData): ${error.message}`);
-                    setTimeout(setupListeners, 5000);
+                    retryCount++;
+                    if (retryCount < MAX_RETRIES) {
+                        showError(`資料庫錯誤 (bankData): ${error.message}，${MAX_RETRIES - retryCount} 次後停止重試`);
+                        setTimeout(setupListeners, 5000);
+                    } else {
+                        showError(`資料庫連線失敗，已達最大重試次數 (${MAX_RETRIES})，請聯繫管理員`);
+                    }
                 });
 
                 onValue(ref(db, 'transactions'), (snapshot) => {
@@ -520,15 +561,26 @@
                     updateAdminTable();
                     if (isEmployeeLoggedIn) checkBalance();
                     if (isAdminLoggedIn) checkAdminBalance();
+                    retryCount = 0; // 重置重試計數
                 }, (error) => {
                     console.error("Error loading transactions:", error.message);
-                    showError(`資料庫錯誤 (transactions): ${error.message}`);
-                    setTimeout(setupListeners, 5000);
+                    retryCount++;
+                    if (retryCount < MAX_RETRIES) {
+                        showError(`資料庫錯誤 (transactions): ${error.message}，${MAX_RETRIES - retryCount} 次後停止重試`);
+                        setTimeout(setupListeners, 5000);
+                    } else {
+                        showError(`資料庫連線失敗，已達最大重試次數 (${MAX_RETRIES})，請聯繫管理員`);
+                    }
                 });
             } catch (e) {
                 console.error("Setup listeners failed:", e.message);
-                showError(`初始化失敗: ${e.message}`);
-                setTimeout(setupListeners, 5000);
+                retryCount++;
+                if (retryCount < MAX_RETRIES) {
+                    showError(`初始化失敗: ${e.message}，${MAX_RETRIES - retryCount} 次後停止重試`);
+                    setTimeout(setupListeners, 5000);
+                } else {
+                    showError(`初始化失敗，已達最大重試次數 (${MAX_RETRIES})，請聯繫管理員`);
+                }
             }
         }
         setupListeners();
@@ -558,20 +610,24 @@
         }
 
         function showError(message) {
-            document.getElementById('error').textContent = message;
-            setTimeout(() => document.getElementById('error').textContent = '', 5000);
+            const error = document.getElementById('error');
+            error.style.display = 'block';
+            error.innerHTML = `${message} <button onclick="this.parentElement.style.display='none'">X</button>`;
+            setTimeout(() => error.style.display = 'none', 7000);
         }
 
         function showSuccessMessage(message) {
             const successMsg = document.getElementById('successMessage');
-            successMsg.textContent = message;
-            setTimeout(() => successMsg.textContent = '', 3000);
+            successMsg.style.display = 'block';
+            successMsg.innerHTML = `${message} <button onclick="this.parentElement.style.display='none'">X</button>`;
+            setTimeout(() => successMsg.style.display = 'none', 5000);
         }
 
         function showSpecialMessage(message) {
             const specialMsg = document.getElementById('specialMessage');
-            specialMsg.textContent = message;
-            setTimeout(() => specialMsg.textContent = '', 3000);
+            specialMsg.style.display = 'block';
+            specialMsg.innerHTML = `${message} <button onclick="this.parentElement.style.display='none'">X</button>`;
+            setTimeout(() => specialMsg.style.display = 'none', 5000);
         }
 
         function showPage(pageId) {
@@ -640,6 +696,8 @@
             document.getElementById('lastWithdrawTime').textContent = '';
             document.getElementById('lotteryChances').textContent = '';
             document.getElementById('adminLotteryChances').textContent = '';
+            document.getElementById('filterEmployeeId').value = '';
+            document.getElementById('filterDate').value = '';
             showPage('mainPage');
         }
 
@@ -984,16 +1042,16 @@
             const employeeId = document.getElementById('employeeId').value.trim();
             if (validateEmployeeId(employeeId)) {
                 const chances = bankData[employeeId]?.lotteryChances || 0;
-                document.getElementById('lotteryChances').textContent = `剩餘抽獎次數：${chances}`;
+                document.getElementById('lotteryChances').innerHTML = `剩餘抽獎次數：${chances}<br><small>（次數不足時請聯繫管理員）</small>`;
             } else {
                 document.getElementById('lotteryChances').textContent = '';
             }
         }
 
-        function updateAdminTable() {
+        function updateAdminTable(filteredTransactions = transactions) {
             const tbody = document.getElementById('transactionBody');
             tbody.innerHTML = '';
-            transactions.forEach((t, index) => {
+            filteredTransactions.forEach((t, index) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td data-label="員工號">${t.employeeId}</td>
@@ -1008,10 +1066,42 @@
             });
         }
 
+        function filterTransactions() {
+            const filterEmployeeId = document.getElementById('filterEmployeeId').value.trim();
+            const filterDate = document.getElementById('filterDate').value;
+
+            let filteredTransactions = transactions;
+
+            if (filterEmployeeId) {
+                filteredTransactions = filteredTransactions.filter(t => t.employeeId === filterEmployeeId);
+            }
+
+            if (filterDate) {
+                const selectedDate = new Date(filterDate).toLocaleDateString('zh-TW', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
+                filteredTransactions = filteredTransactions.filter(t => {
+                    const transactionDate = new Date(t.date).toLocaleDateString('zh-TW', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    });
+                    return transactionDate === selectedDate;
+                });
+            }
+
+            updateAdminTable(filteredTransactions);
+            document.getElementById('transactionTable').style.display = 'table';
+            document.querySelector('.toggle-btn').textContent = '收合交易記錄';
+        }
+
         function toggleTransactions() {
             const table = document.getElementById('transactionTable');
             const button = document.querySelector('.toggle-btn');
             if (table.style.display === 'none' || table.style.display === '') {
+                updateAdminTable();
                 table.style.display = 'table';
                 button.textContent = '收合交易記錄';
             } else {
@@ -1039,16 +1129,22 @@
             const randomIndex = Math.floor(Math.random() * prizes.length);
             const prize = prizes[randomIndex];
 
+            const depositDate = new Date();
+            const expiryDate = new Date(depositDate);
+            expiryDate.setDate(depositDate.getDate() + 15);
+            const formattedExpiryDate = expiryDate.toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+
             const lotteryOverlay = document.getElementById('lotteryOverlay');
             const lotteryResultModal = document.getElementById('lotteryResultModal');
             lotteryOverlay.style.display = 'block';
             lotteryResultModal.style.display = 'block';
-            document.getElementById('lotteryResultText').textContent = `恭喜您抽中 ${prize} 元！`;
+            document.getElementById('lotteryResultText').innerHTML = `恭喜您抽中 ${prize} 元！<br>請於 ${formattedExpiryDate} 前使用。`;
 
             try {
-                const depositDate = new Date();
-                const expiryDate = new Date(depositDate);
-                expiryDate.setDate(depositDate.getDate() + 15);
                 bankData[employeeId].deposits.push({
                     amount: prize,
                     depositDate: depositDate.toLocaleString('zh-TW'),
@@ -1104,7 +1200,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `transactions_${new Date().toISOString().split('T')[0]}.xlsx`;
+            a.download = `all_transactions_${new Date().toISOString().split('T')[0]}.xlsx`;
             a.click();
             URL.revokeObjectURL(url);
         }
@@ -1129,13 +1225,13 @@
                 '管理員': t.admin || '未記錄'
             }));
             const ws = XLSX.utils.json_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, `個人交易記錄_${employeeId}`);
+            XLSX.utils.book_append_sheet(wb, ws, `交易記錄_${employeeId}`);
             const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
             const blob = new Blob([wbout], { type: 'application/octet-stream' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `employee_transactions_${employeeId}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            a.download = `transactions_${employeeId}_${new Date().toISOString().split('T')[0]}.xlsx`;
             a.click();
             URL.revokeObjectURL(url);
             showSuccessMessage("個人交易記錄匯出成功！");
@@ -1164,6 +1260,7 @@
         window.exportEmployeeTransactionsToExcel = exportEmployeeTransactionsToExcel;
         window.syncEmployeeId = syncEmployeeId;
         window.toggleTransactions = toggleTransactions;
+        window.filterTransactions = filterTransactions;
     </script>
 </body>
 </html>
