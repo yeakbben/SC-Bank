@@ -156,12 +156,6 @@
         .toggle-btn:hover, .toggle-btn:active {
             background: linear-gradient(45deg, #4b304f, #3b203f);
         }
-        .filter-btn {
-            background: linear-gradient(45deg, #17a2b8, #138496);
-        }
-        .filter-btn:hover, .filter-btn:active {
-            background: linear-gradient(45deg, #138496, #117a8b);
-        }
         .admin-section {
             margin-top: 15px;
             padding-top: 15px;
@@ -191,7 +185,7 @@
             font-size: 1rem;
             color: #6b4e71;
         }
-        .last-time, .validity-note, .special-message, .lottery-chances, .no-records {
+        .last-time, .validity-note, .special-message, .lottery-chances {
             font-size: 0.9rem;
             color: #d81b60;
             margin-top: 5px;
@@ -436,15 +430,7 @@
                 </div>
                 <button class="export-btn" onclick="exportTransactionsToExcel()">匯出交易記錄為 Excel</button>
                 <h3>所有交易記錄</h3>
-                <div class="form-group">
-                    <label for="filterEmployeeId">過濾員工號</label>
-                    <input type="text" id="filterEmployeeId" placeholder="輸入員工號以過濾">
-                    <label for="filterDate">過濾日期</label>
-                    <input type="date" id="filterDate">
-                    <button class="filter-btn" onclick="filterTransactions()">過濾</button>
-                </div>
                 <button class="toggle-btn" onclick="toggleTransactions()">展開交易記錄</button>
-                <p id="noRecords" class="no-records" style="display: none;">無符合條件的交易記錄</p>
                 <table id="transactionTable">
                     <thead>
                         <tr>
@@ -697,8 +683,6 @@
             document.getElementById('lastWithdrawTime').textContent = '';
             document.getElementById('lotteryChances').textContent = '';
             document.getElementById('adminLotteryChances').textContent = '';
-            document.getElementById('filterEmployeeId').value = '';
-            document.getElementById('filterDate').value = '';
             showPage('mainPage');
         }
 
@@ -1049,20 +1033,10 @@
             }
         }
 
-        function updateAdminTable(filteredTransactions = transactions) {
+        function updateAdminTable() {
             const tbody = document.getElementById('transactionBody');
-            const noRecords = document.getElementById('noRecords');
             tbody.innerHTML = '';
-            
-            if (!filteredTransactions || filteredTransactions.length === 0) {
-                noRecords.style.display = 'block';
-                document.getElementById('transactionTable').style.display = 'none';
-                document.querySelector('.toggle-btn').textContent = '展開交易記錄';
-                return;
-            }
-
-            noRecords.style.display = 'none';
-            filteredTransactions.forEach((t, index) => {
+            transactions.forEach((t, index) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td data-label="員工號">${t.employeeId}</td>
@@ -1077,59 +1051,13 @@
             });
         }
 
-        function filterTransactions() {
-            const filterEmployeeId = document.getElementById('filterEmployeeId').value.trim();
-            const filterDate = document.getElementById('filterDate').value;
-
-            if (!transactions || transactions.length === 0) {
-                showSuccessMessage("目前無交易記錄可過濾");
-                return;
-            }
-
-            let filteredTransactions = [...transactions];
-
-            if (filterEmployeeId) {
-                filteredTransactions = filteredTransactions.filter(t => String(t.employeeId).trim() === filterEmployeeId);
-                console.log(`Filtering by employeeId: ${filterEmployeeId}, Result count: ${filteredTransactions.length}`);
-            }
-
-            if (filterDate) {
-                const selectedDate = new Date(filterDate).toLocaleDateString('zh-TW', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                });
-                filteredTransactions = filteredTransactions.filter(t => {
-                    const transactionDate = new Date(t.date).toLocaleDateString('zh-TW', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                    });
-                    return transactionDate === selectedDate;
-                });
-                console.log(`Filtering by date: ${selectedDate}, Result count: ${filteredTransactions.length}`);
-            }
-
-            updateAdminTable(filteredTransactions);
-            if (filteredTransactions.length > 0 || (filterEmployeeId || filterDate)) {
-                document.getElementById('transactionTable').style.display = 'table';
-                document.querySelector('.toggle-btn').textContent = '收合交易記錄';
-            } else {
-                document.getElementById('transactionTable').style.display = 'none';
-                document.querySelector('.toggle-btn').textContent = '展開交易記錄';
-                showSuccessMessage("無符合條件的交易記錄");
-            }
-        }
-
         function toggleTransactions() {
             const table = document.getElementById('transactionTable');
             const button = document.querySelector('.toggle-btn');
             if (table.style.display === 'none' || table.style.display === '') {
                 updateAdminTable();
-                if (transactions.length > 0) {
-                    table.style.display = 'table';
-                    button.textContent = '收合交易記錄';
-                }
+                table.style.display = 'table';
+                button.textContent = '收合交易記錄';
             } else {
                 table.style.display = 'none';
                 button.textContent = '展開交易記錄';
@@ -1286,7 +1214,6 @@
         window.exportEmployeeTransactionsToExcel = exportEmployeeTransactionsToExcel;
         window.syncEmployeeId = syncEmployeeId;
         window.toggleTransactions = toggleTransactions;
-        window.filterTransactions = filterTransactions;
     </script>
 </body>
 </html>
