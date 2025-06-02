@@ -8,6 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <title>SC 小金庫</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Dancing+Script:wght@400&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: Arial, 'Noto Sans TC', sans-serif;
@@ -352,7 +353,7 @@
                     <input type="number" id="lotteryChancesInput" min="0" placeholder="請輸入抽獎次數">
                     <button onclick="setLotteryChances()">設定抽獎次數</button>
                 </div>
-                <button class="export-btn" onclick="exportData()">匯出資料</button>
+                <button class="export-btn" onclick="exportTransactionsToExcel()">匯出交易記錄為 Excel</button>
                 <h3>所有交易記錄</h3>
                 <table id="transactionTable">
                     <thead>
@@ -471,21 +472,6 @@
                 showError(`儲存失敗: ${error.message}`);
                 throw error;
             }
-        }
-
-        function exportData() {
-            if (!isAdminLoggedIn) {
-                showError("請先以管理員身分登入");
-                return;
-            }
-            const data = { bankData, transactions };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `sc-bank-backup-${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
         }
 
         function updateDate() {
@@ -882,6 +868,28 @@
             document.getElementById('lotteryResultText').textContent = '';
         }
 
+        function exportTransactionsToExcel() {
+            const wb = XLSX.utils.book_new();
+            const wsData = transactions.map(t => ({
+                '員工號': t.employeeId,
+                '交易類型': t.type,
+                '金額': t.amount,
+                '日期': t.date,
+                '餘額': t.balance,
+                '管理員': t.admin || '未記錄'
+            }));
+            const ws = XLSX.utils.json_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, "交易記錄");
+            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transactions_${new Date().toISOString().split('T')[0]}.xlsx`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
         updateDate();
         updateAdminTable();
         document.getElementById('adminLoginForm').style.display = 'block';
@@ -894,10 +902,10 @@
         window.confirmAdminAuth = confirmAdminAuth;
         window.loginAdmin = loginAdmin;
         window.deleteTransaction = deleteTransaction;
-        window.exportData = exportData;
         window.setLotteryChances = setLotteryChances;
         window.performLottery = performLottery;
         window.closeLotteryResult = closeLotteryResult;
+        window.exportTransactionsToExcel = exportTransactionsToExcel;
     </script>
 </body>
 </html>
