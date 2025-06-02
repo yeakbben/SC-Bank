@@ -481,12 +481,6 @@
             { username: "Ivan", password: "2229" },
             { username: "Celine", password: "2235" }
         ];
-        const ALLOWED_EMPLOYEE_IDS = [
-            "10011985", "2801937", "2802155", "10014584", "2803219",
-            "10014576", "10012088", "2802301", "2802862", "2802670",
-            "10014567", "2803297", "10015181", "2802269", "10013395",
-            "2804007", "10014339", "10014378", "2802663"
-        ];
         const ADMIN_IDS = ["2802312", "2801433", "2802229", "2802235"];
         let currentAction = null;
         let isAdminLoggedIn = false;
@@ -638,12 +632,6 @@
                 setTimeout(() => hint.textContent = '', 3000);
                 return false;
             }
-            if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
-                hint.textContent = "查無此員工";
-                hint.style.display = 'block';
-                setTimeout(() => hint.textContent = '', 3000);
-                return false;
-            }
             hint.style.display = 'none';
             return true;
         }
@@ -661,7 +649,7 @@
                 }
                 return false;
             }
-            if (ALLOWED_EMPLOYEE_IDS.includes(employeeId) && !bankData[employeeId]) {
+            if (!bankData[employeeId]) {
                 bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null };
                 try {
                     await saveData();
