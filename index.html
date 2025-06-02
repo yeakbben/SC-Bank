@@ -151,12 +151,6 @@
         .toggle-btn:hover, .toggle-btn:active {
             background: linear-gradient(45deg, #4b304f, #3b203f);
         }
-        .back-btn {
-            background: linear-gradient(45deg, #6c757d, #5a6268);
-        }
-        .back-btn:hover, .back-btn:active {
-            background: linear-gradient(45deg, #5a6268, #4e555b);
-        }
         .admin-section {
             margin-top: 15px;
             padding-top: 15px;
@@ -346,7 +340,6 @@
                 <div id="employeeIdHint" class="employee-id-hint"></div>
                 <label for="employeeId">員工號</label>
                 <input type="text" id="employeeId" placeholder="請輸入員工號">
-                <button class="query-btn" onclick="checkBalance()">查詢餘額</button>
             </div>
             <div class="form-group">
                 <label for="balance">當前餘額</label>
@@ -386,13 +379,11 @@
                     <label for="adminDeposit">存款金額</label>
                     <input type="number" id="adminDeposit" min="0" placeholder="請輸入存款金額">
                     <button onclick="handleDeposit()">存款</button>
-                    <button class="back-btn" onclick="restorePreviousBalance()">返回</button>
                 </div>
                 <div class="form-group">
                     <label for="adminWithdraw">提款金額</label>
                     <input type="number" id="adminWithdraw" min="0" placeholder="請輸入提款金額">
                     <button onclick="handleWithdraw()">提款</button>
-                    <button class="back-btn" onclick="restorePreviousBalance()">返回</button>
                 </div>
                 <div class="form-group">
                     <label for="setLotteryEmployeeId">設定抽獎次數的員工號</label>
@@ -488,7 +479,6 @@
             { username: "Celine", password: "2235" }
         ];
         const ADMIN_IDS = ["2802312", "2801433", "2802229", "2802235"];
-        let previousBalance = null; // 儲存上一次餘額
         let isAdminLoggedIn = false;
         let currentAdmin = null;
         let isEmployeeLoggedIn = false;
@@ -590,7 +580,7 @@
                 document.getElementById('employeeId').value = employeeId;
                 closeEmployeeLogin();
                 showPage('employeePage');
-                checkBalance();
+                checkBalance(); // 自動查詢餘額
             }
         }
 
@@ -624,7 +614,6 @@
             isAdminLoggedIn = false;
             currentEmployee = null;
             currentAdmin = null;
-            previousBalance = null;
             document.getElementById('employeeId').value = '';
             document.getElementById('adminQueryEmployeeId').value = '';
             document.getElementById('setLotteryEmployeeId').value = '';
@@ -711,7 +700,7 @@
                 let lastWithdraw = null;
                 for (let i = transactions.length - 1; i >= 0; i--) {
                     if (transactions[i].employeeId === employeeId) {
-                        if (transactions[i].type === '存款' && !lastDeposit) {
+                        if (['存款', '抽獎獎金'].includes(transactions[i].type) && !lastDeposit) {
                             lastDeposit = transactions[i].date;
                         } else if (transactions[i].type === '提款' && !lastWithdraw) {
                             lastWithdraw = transactions[i].date;
@@ -720,7 +709,7 @@
                     }
                 }
 
-                document.getElementById('lastDepositTime').textContent = lastDeposit ? `最後存款時間：${lastDeposit}` : '最後存款時間：無記錄';
+                document.getElementById('lastDepositTime').textContent = lastDeposit ? `最後存款/抽獎時間：${lastDeposit}` : '最後存款/抽獎時間：無記錄';
                 document.getElementById('lastWithdrawTime').textContent = lastWithdraw ? `最後提款時間：${lastWithdraw}` : '最後提款時間：無記錄';
                 updateLotteryChances();
                 await saveData();
@@ -731,7 +720,6 @@
             const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
             if (await initializeEmployee(employeeId)) {
                 const balance = calculateBalance(employeeId);
-                previousBalance = balance; // 儲存當前餘額
                 document.getElementById('adminBalance').value = balance;
                 const chances = bankData[employeeId]?.lotteryChances || 0;
                 document.getElementById('adminLotteryChances').textContent = `剩餘抽獎次數：${chances}`;
@@ -856,18 +844,6 @@
                     showError(`提款失敗: ${error.message}`);
                 }
                 await checkAdminBalance();
-            }
-        }
-
-        function restorePreviousBalance() {
-            if (previousBalance !== null) {
-                const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
-                if (employeeId && bankData[employeeId]) {
-                    document.getElementById('adminBalance').value = previousBalance;
-                    showSuccessMessage("已恢復至上一次餘額！");
-                }
-            } else {
-                showError("無上一次餘額紀錄！");
             }
         }
 
@@ -1130,7 +1106,6 @@
         window.checkAdminBalance = checkAdminBalance;
         window.handleDeposit = handleDeposit;
         window.handleWithdraw = handleWithdraw;
-        window.restorePreviousBalance = restorePreviousBalance;
         window.showValidity = showValidity;
         window.deleteTransaction = deleteTransaction;
         window.setLotteryChances = setLotteryChances;
