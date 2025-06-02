@@ -189,6 +189,20 @@
             z-index: 1001;
             text-align: center;
         }
+        .firework {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: url('https://www.freeiconspng.com/uploads/fireworks-png-2.png') no-repeat center;
+            background-size: contain;
+            animation: fireworks 2s ease-out forwards;
+            opacity: 0;
+        }
+        @keyframes fireworks {
+            0% { opacity: 0; transform: scale(0) rotate(0deg); }
+            50% { opacity: 1; transform: scale(1.5) rotate(180deg); }
+            100% { opacity: 0; transform: scale(2) rotate(360deg); }
+        }
         .lottery-overlay {
             display: none;
             position: fixed;
@@ -351,6 +365,7 @@
                 <p id="validityNote" class="validity-note"></p>
                 <button class="lottery-btn" onclick="performLottery()">抽獎</button>
                 <p id="lotteryChances" class="lottery-chances"></p>
+                <button class="export-btn" onclick="exportEmployeeTransactionsToExcel()">匯出個人交易記錄為 Excel</button>
             </div>
             <div class="form-group">
                 <label>目前日期</label>
@@ -448,6 +463,7 @@
     <div class="lottery-overlay" id="lotteryOverlay"></div>
     <div class="lottery-result" id="lotteryResultModal">
         <p id="lotteryResultText"></p>
+        <div id="fireworkContainer" class="firework"></div>
         <button onclick="closeLotteryResult()">關閉</button>
     </div>
 
@@ -603,6 +619,7 @@
                 currentAdmin = username;
                 closeAdminLogin();
                 showPage('adminPage');
+                document.getElementById('transactionTable').style.display = 'none'; // 確保交易紀錄收合
                 updateAdminTable();
             } else {
                 showError("管理員帳號或密碼錯誤");
@@ -1028,6 +1045,15 @@
             lotteryResultModal.style.display = 'block';
             document.getElementById('lotteryResultText').textContent = `恭喜您抽中 ${prize} 元！`;
 
+            // 添加煙火動畫
+            const fireworkContainer = document.getElementById('fireworkContainer');
+            fireworkContainer.style.opacity = 1;
+            fireworkContainer.style.left = '50%';
+            fireworkContainer.style.top = '50%';
+            setTimeout(() => {
+                fireworkContainer.style.opacity = 0;
+            }, 2000); // 2秒後消失
+
             try {
                 const depositDate = new Date();
                 const expiryDate = new Date(depositDate);
@@ -1068,6 +1094,7 @@
             lotteryOverlay.style.display = 'none';
             lotteryResultModal.style.display = 'none';
             document.getElementById('lotteryResultText').textContent = '';
+            document.getElementById('fireworkContainer').style.opacity = 0; // 重置煙火
         }
 
         function exportTransactionsToExcel() {
@@ -1092,6 +1119,38 @@
             URL.revokeObjectURL(url);
         }
 
+        function exportEmployeeTransactionsToExcel() {
+            const employeeId = document.getElementById('employeeId').value.trim();
+            if (!validateEmployeeId(employeeId)) return;
+
+            const employeeTransactions = transactions.filter(t => t.employeeId === employeeId);
+            if (employeeTransactions.length === 0) {
+                showError("無個人交易記錄可匯出");
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            const wsData = employeeTransactions.map(t => ({
+                '員工號': t.employeeId,
+                '交易類型': t.type,
+                '金額': t.amount,
+                '日期': t.date,
+                '餘額': t.balance,
+                '管理員': t.admin || '未記錄'
+            }));
+            const ws = XLSX.utils.json_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, `個人交易記錄_${employeeId}`);
+            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `employee_transactions_${employeeId}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showSuccessMessage("個人交易記錄匯出成功！");
+        }
+
         updateDate();
         updateAdminTable();
 
@@ -1112,6 +1171,7 @@
         window.performLottery = performLottery;
         window.closeLotteryResult = closeLotteryResult;
         window.exportTransactionsToExcel = exportTransactionsToExcel;
+        window.exportEmployeeTransactionsToExcel = exportEmployeeTransactionsToExcel;
         window.syncEmployeeId = syncEmployeeId;
         window.toggleTransactions = toggleTransactions;
     </script>
