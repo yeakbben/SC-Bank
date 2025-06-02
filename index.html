@@ -201,17 +201,27 @@
         }
         .firework {
             position: fixed;
-            width: 80px;
-            height: 80px;
+            width: 100px;
+            height: 100px;
             background: url('https://www.pngall.com/wp-content/uploads/5/Firework-PNG-Image.png') no-repeat center;
             background-size: contain;
+            z-index: 1002; /* 確保在模態框之上 */
             animation: fireworks 1s ease-out forwards;
-            opacity: 0;
+            transform-origin: center;
         }
         @keyframes fireworks {
-            0% { opacity: 0; transform: scale(0) rotate(0deg); }
-            50% { opacity: 1; transform: scale(1.5) rotate(180deg); }
-            100% { opacity: 0; transform: scale(2) rotate(360deg); }
+            0% {
+                opacity: 1;
+                transform: scale(0) rotate(0deg);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.2) rotate(180deg);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(1.5) rotate(360deg);
+            }
         }
         table {
             width: 100%;
@@ -1049,9 +1059,12 @@
             for (let i = 0; i < numberOfFireworks; i++) {
                 const firework = document.createElement('div');
                 firework.className = 'firework';
-                firework.style.left = `${Math.random() * 100}%`; // 隨機水平位置
-                firework.style.top = `${Math.random() * 100}%`;  // 隨機垂直位置
+                const randomScale = 0.8 + Math.random() * 0.4; // 隨機縮放 0.8~1.2
+                firework.style.left = `${Math.random() * 100}%`;
+                firework.style.top = `${Math.random() * 100}%`;
+                firework.style.transform = `scale(${randomScale})`;
                 document.body.appendChild(firework);
+                console.log(`Firework ${i + 1} created at left: ${firework.style.left}, top: ${firework.style.top}`);
             }
 
             try {
@@ -1096,6 +1109,7 @@
             document.getElementById('lotteryResultText').textContent = '';
             // 移除所有煙火元素
             const fireworks = document.querySelectorAll('.firework');
+            console.log(`Removing ${fireworks.length} fireworks`);
             fireworks.forEach(firework => firework.remove());
         }
 
