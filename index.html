@@ -504,10 +504,19 @@
         }
 
         function showValidity() {
-            const { month, lastDay } = getLastDayOfMonth();
-            const validityNote = document.getElementById('validityNote');
-            validityNote.textContent = `有效期限到${month}月${lastDay}日`;
-            validityNote.style.display = 'block';
+            const employeeId = document.getElementById('employeeId').value.trim();
+            if (!validateEmployeeId(employeeId) || !bankData[employeeId]?.deposits?.length) {
+                document.getElementById('validityNote').textContent = '無有效存款或抽獎金額';
+                return;
+            }
+            const earliestDeposit = [...bankData[employeeId].deposits].sort((a, b) => new Date(a.depositDate) - new Date(b.depositDate))[0];
+            const expiryDate = new Date(earliestDeposit.expiryDate).toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+            document.getElementById('validityNote').textContent = `最早存款/抽獎金額有效期限至：${expiryDate}`;
+            document.getElementById('validityNote').style.display = 'block';
         }
 
         function validateEmployeeId(employeeId) {
@@ -542,7 +551,7 @@
                 return false;
             }
             if (ALLOWED_EMPLOYEE_IDS.includes(employeeId) && !bankData[employeeId]) {
-                bankData[employeeId] = { balance: 0, lotteryChances: 0 };
+                bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null };
                 try {
                     await saveData();
                 } catch (error) {
@@ -553,10 +562,29 @@
             return true;
         }
 
+        function calculateBalance(employeeId) {
+            const now = new Date();
+            let totalBalance = 0;
+            const deposits = bankData[employeeId]?.deposits || [];
+            let updatedDeposits = deposits.map(deposit => {
+                const expiryDate = new Date(deposit.expiryDate);
+                if (now > expiryDate) {
+                    if (deposit.amount > 0) {
+                        deposit.amount = 0;
+                    }
+                }
+                totalBalance += deposit.amount;
+                return deposit;
+            });
+            bankData[employeeId].deposits = updatedDeposits;
+            return totalBalance;
+        }
+
         async function checkBalance() {
             const employeeId = document.getElementById('employeeId').value.trim();
             if (await initializeEmployee(employeeId)) {
-                document.getElementById('balance').value = bankData[employeeId] ? (bankData[employeeId].balance || 0) : 0;
+                const balance = calculateBalance(employeeId);
+                document.getElementById('balance').value = balance;
 
                 let lastDeposit = null;
                 let lastWithdraw = null;
@@ -574,6 +602,7 @@
                 document.getElementById('lastDepositTime').textContent = lastDeposit ? `最後存款時間：${lastDeposit}` : '最後存款時間：無記錄';
                 document.getElementById('lastWithdrawTime').textContent = lastWithdraw ? `最後提款時間：${lastWithdraw}` : '最後提款時間：無記錄';
                 updateLotteryChances();
+                await saveData();
             }
         }
 
@@ -585,7 +614,8 @@
                 showError(`請輸入有效的${action === 'deposit' ? '存款' : '提款'}金額`);
                 return;
             }
-            if (action === 'withdraw' && amount > (bankData[employeeId] ? Number(bankData[employeeId].balance) || 0 : 0)) {
+            const balance = calculateBalance(employeeId);
+            if (action === 'withdraw' && amount > balance) {
                 showError("餘額不足");
                 return;
             }
@@ -653,13 +683,22 @@
             }
 
             try {
-                bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) + amount;
+                const depositDate = new Date();
+                const expiryDate = new Date(depositDate);
+                expiryDate.setDate(depositDate.getDate() + 15);
+                const deposit = {
+                    amount: amount,
+                    depositDate: depositDate.toLocaleString('zh-TW'),
+                    expiryDate: expiryDate.toISOString()
+                };
+                bankData[employeeId].deposits.push(deposit);
+                const balance = calculateBalance(employeeId);
                 await push(ref(db, 'transactions'), {
                     employeeId,
                     type: '存款',
                     amount,
-                    date: new Date().toLocaleString('zh-TW'),
-                    balance: bankData[employeeId].balance,
+                    date: deposit.depositDate,
+                    balance: balance,
                     admin: currentAdmin
                 });
                 await saveData();
@@ -669,14 +708,14 @@
             } catch (error) {
                 console.error("Error during deposit:", error.message);
                 showError(`存款失敗: ${error.message}`);
-                bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) - amount;
+                bankData[employeeId].deposits = bankData[employeeId].deposits.filter(d => d.depositDate !== deposit.depositDate);
                 await checkBalance();
             }
         }
 
         async function handleWithdraw() {
             const employeeId = document.getElementById('employeeId').value.trim();
-            const amount = parseFloat(document.getElementById('withdraw').value);
+            let amount = parseFloat(document.getElementById('withdraw').value);
             if (!await initializeEmployee(employeeId)) return;
 
             if (isNaN(amount) || amount <= 0) {
@@ -684,19 +723,39 @@
                 return;
             }
 
-            if (amount > (bankData[employeeId] ? Number(bankData[employeeId].balance) || 0 : 0)) {
+            const balance = calculateBalance(employeeId);
+            if (amount > balance) {
                 showError("餘額不足");
                 return;
             }
 
             try {
-                bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) - amount;
+                let remainingAmount = amount;
+                let deposits = [...bankData[employeeId].deposits].sort((a, b) => new Date(a.depositDate) - new Date(b.depositDate));
+                let updatedDeposits = [];
+                for (let deposit of deposits) {
+                    if (remainingAmount <= 0) {
+                        updatedDeposits.push(deposit);
+                        continue;
+                    }
+                    const depositAmount = deposit.amount;
+                    if (depositAmount >= remainingAmount) {
+                        deposit.amount -= remainingAmount;
+                        remainingAmount = 0;
+                        if (deposit.amount > 0) updatedDeposits.push(deposit);
+                    } else {
+                        remainingAmount -= depositAmount;
+                        deposit.amount = 0;
+                    }
+                }
+                bankData[employeeId].deposits = updatedDeposits.filter(d => d.amount > 0);
+                const newBalance = calculateBalance(employeeId);
                 await push(ref(db, 'transactions'), {
                     employeeId,
                     type: '提款',
                     amount,
                     date: new Date().toLocaleString('zh-TW'),
-                    balance: bankData[employeeId].balance,
+                    balance: newBalance,
                     admin: currentAdmin
                 });
                 await saveData();
@@ -706,7 +765,6 @@
             } catch (error) {
                 console.error("Error during withdraw:", error.message);
                 showError(`提款失敗: ${error.message}`);
-                bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) + amount;
                 await checkBalance();
             }
         }
@@ -728,11 +786,35 @@
 
             try {
                 if (type === '存款') {
-                    bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) - amount;
+                    bankData[employeeId].deposits = bankData[employeeId].deposits.filter(d => d.depositDate !== transaction.date);
                 } else if (type === '提款') {
-                    bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) + amount;
+                    let remainingAmount = amount;
+                    let newDeposit = {
+                        amount: amount,
+                        depositDate: new Date().toLocaleString('zh-TW'),
+                        expiryDate: new Date(new Date().setDate(new Date().getDate() + 15)).toISOString()
+                    };
+                    bankData[employeeId].deposits.push(newDeposit);
                 } else if (type === '抽獎獎金') {
-                    bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) - amount;
+                    let remainingAmount = amount;
+                    let deposits = [...bankData[employeeId].deposits].sort((a, b) => new Date(a.depositDate) - new Date(b.depositDate));
+                    let updatedDeposits = [];
+                    for (let deposit of deposits) {
+                        if (remainingAmount <= 0) {
+                            updatedDeposits.push(deposit);
+                            continue;
+                        }
+                        const depositAmount = deposit.amount;
+                        if (depositAmount >= remainingAmount) {
+                            deposit.amount -= remainingAmount;
+                            remainingAmount = 0;
+                            if (deposit.amount > 0) updatedDeposits.push(deposit);
+                        } else {
+                            remainingAmount -= depositAmount;
+                            deposit.amount = 0;
+                        }
+                    }
+                    bankData[employeeId].deposits = updatedDeposits.filter(d => d.amount > 0);
                 }
 
                 await remove(ref(db, `transactions/${keyToDelete}`));
@@ -743,13 +825,6 @@
             } catch (error) {
                 console.error("Error deleting transaction:", error.message);
                 showError(`刪除失敗: ${error.message}`);
-                if (type === '存款') {
-                    bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) + amount;
-                } else if (type === '提款') {
-                    bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) - amount;
-                } else if (type === '抽獎獎金') {
-                    bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) + amount;
-                }
                 await checkBalance();
             }
         }
@@ -770,9 +845,10 @@
 
             try {
                 if (!bankData[employeeId]) {
-                    bankData[employeeId] = { balance: 0, lotteryChances: 0 };
+                    bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null };
                 }
                 bankData[employeeId].lotteryChances = chances;
+                bankData[employeeId].lotteryAdmin = currentAdmin;
                 await saveData();
                 document.getElementById('setLotteryEmployeeId').value = '';
                 document.getElementById('lotteryChancesInput').value = '';
@@ -818,7 +894,7 @@
             if (!await initializeEmployee(employeeId)) return;
 
             if (!bankData[employeeId]) {
-                bankData[employeeId] = { balance: 0, lotteryChances: 0 };
+                bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null };
             }
 
             const chances = bankData[employeeId].lotteryChances || 0;
@@ -827,6 +903,7 @@
                 return;
             }
 
+            const lotteryAdmin = bankData[employeeId].lotteryAdmin || '未記錄';
             const prizes = [50, 100, 150, 200];
             const randomIndex = Math.floor(Math.random() * prizes.length);
             const prize = prizes[randomIndex];
@@ -838,15 +915,23 @@
             document.getElementById('lotteryResultText').textContent = `恭喜您抽中 ${prize} 元！`;
 
             try {
-                bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) + prize;
+                const depositDate = new Date();
+                const expiryDate = new Date(depositDate);
+                expiryDate.setDate(depositDate.getDate() + 15);
+                bankData[employeeId].deposits.push({
+                    amount: prize,
+                    depositDate: depositDate.toLocaleString('zh-TW'),
+                    expiryDate: expiryDate.toISOString()
+                });
                 bankData[employeeId].lotteryChances = chances - 1;
+                const balance = calculateBalance(employeeId);
                 await push(ref(db, 'transactions'), {
                     employeeId,
                     type: '抽獎獎金',
                     amount: prize,
                     date: new Date().toLocaleString('zh-TW'),
-                    balance: bankData[employeeId].balance,
-                    admin: null
+                    balance: balance,
+                    admin: lotteryAdmin
                 });
                 await saveData();
                 await checkBalance();
@@ -854,7 +939,6 @@
             } catch (error) {
                 console.error("Error during lottery:", error.message);
                 showError(`抽獎獎金儲存失敗: ${error.message}`);
-                bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) - prize;
                 bankData[employeeId].lotteryChances = chances;
                 await checkBalance();
             }
