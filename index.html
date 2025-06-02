@@ -145,6 +145,12 @@
         .lottery-btn:hover, .lottery-btn:active {
             background: linear-gradient(45deg, #ff3d7f, #e62e6b);
         }
+        .toggle-btn {
+            background: linear-gradient(45deg, #6b4e71, #4b304f);
+        }
+        .toggle-btn:hover, .toggle-btn:active {
+            background: linear-gradient(45deg, #4b304f, #3b203f);
+        }
         .admin-section {
             margin-top: 15px;
             padding-top: 15px;
@@ -152,6 +158,12 @@
         }
         .error {
             color: #d81b60;
+            font-size: 0.9rem;
+            margin: 5px 0;
+            text-align: center;
+        }
+        .success {
+            color: #28a745;
             font-size: 0.9rem;
             margin: 5px 0;
             text-align: center;
@@ -193,6 +205,7 @@
             margin-top: 15px;
             font-size: 0.9rem;
             background-color: #fff;
+            display: none; /* 預設隱藏 */
         }
         th, td {
             border: 1px solid #f4c2c2;
@@ -352,6 +365,7 @@
         <div id="adminPage" class="page">
             <div class="admin-section">
                 <h2>管理員專區</h2>
+                <div classT id="successMessage" class="success"></div>
                 <div class="form-group">
                     <label for="adminQueryEmployeeId">查詢員工號</label>
                     <input type="text" id="adminQueryEmployeeId" placeholder="請輸入員工號" oninput="syncEmployeeId()">
@@ -381,6 +395,7 @@
                 </div>
                 <button class="export-btn" onclick="exportTransactionsToExcel()">匯出交易記錄為 Excel</button>
                 <h3>所有交易記錄</h3>
+                <button class="toggle-btn" onclick="toggleTransactions()">展開交易記錄</button>
                 <table id="transactionTable">
                     <thead>
                         <tr>
@@ -550,6 +565,12 @@
             setTimeout(() => document.getElementById('error').textContent = '', 5000);
         }
 
+        function showSuccessMessage(message) {
+            const successMsg = document.getElementById('successMessage');
+            successMsg.textContent = message;
+            setTimeout(() => successMsg.textContent = '', 3000);
+        }
+
         function showSpecialMessage(message) {
             const specialMsg = document.getElementById('specialMessage');
             specialMsg.textContent = message;
@@ -683,7 +704,7 @@
                 }
                 totalBalance += deposit.amount;
                 return deposit;
-            });
+            }).filter(deposit => deposit.amount > 0); // 移除金額為 0 的存款
             bankData[employeeId].deposits = updatedDeposits;
             return totalBalance;
         }
@@ -765,8 +786,11 @@
             if (isValidAdmin) {
                 currentAdmin = username;
                 closeAdminAuth();
-                if (currentAction === 'deposit') handleDeposit();
-                else if (currentAction === 'withdraw') handleWithdraw();
+                if (currentAction === 'deposit') {
+                    handleDeposit();
+                } else if (currentAction === 'withdraw') {
+                    handleWithdraw();
+                }
             } else {
                 showError("管理員帳號或密碼錯誤");
                 document.getElementById('modalUsername').value = '';
@@ -793,20 +817,22 @@
                     depositDate: depositDate.toLocaleString('zh-TW'),
                     expiryDate: expiryDate.toISOString()
                 };
+                if (!bankData[employeeId].deposits) {
+                    bankData[employeeId].deposits = [];
+                }
                 bankData[employeeId].deposits.push(deposit);
-                const balance = calculateBalance(employeeId);
+                await saveData(); // 確保資料保存到 Firebase
                 await push(ref(db, 'transactions'), {
                     employeeId,
                     type: '存款',
                     amount,
                     date: deposit.depositDate,
-                    balance: balance,
+                    balance: calculateBalance(employeeId),
                     admin: currentAdmin
                 });
-                await saveData();
                 document.getElementById('adminDeposit').value = '';
-                await checkAdminBalance();
-                showError("存款成功！");
+                showSuccessMessage("存款成功！");
+                await checkAdminBalance(); // 確保 UI 更新
             } catch (error) {
                 console.error("Error during deposit:", error.message);
                 if (error.code === 'PERMISSION_DENIED') {
@@ -814,7 +840,9 @@
                 } else {
                     showError(`存款失敗: ${error.message}`);
                 }
+                // 回滾存款操作
                 bankData[employeeId].deposits = bankData[employeeId].deposits.filter(d => d.depositDate !== deposit.depositDate);
+                await saveData();
                 await checkAdminBalance();
             }
         }
@@ -855,19 +883,18 @@
                     }
                 }
                 bankData[employeeId].deposits = updatedDeposits.filter(d => d.amount > 0);
-                const newBalance = calculateBalance(employeeId);
+                await saveData(); // 確保資料保存到 Firebase
                 await push(ref(db, 'transactions'), {
                     employeeId,
                     type: '提款',
                     amount,
                     date: new Date().toLocaleString('zh-TW'),
-                    balance: newBalance,
+                    balance: calculateBalance(employeeId),
                     admin: currentAdmin
                 });
-                await saveData();
                 document.getElementById('adminWithdraw').value = '';
-                await checkAdminBalance();
-                showError("提款成功！");
+                showSuccessMessage("提款成功！");
+                await checkAdminBalance(); // 確保 UI 更新
             } catch (error) {
                 console.error("Error during withdraw:", error.message);
                 if (error.code === 'PERMISSION_DENIED') {
@@ -947,7 +974,7 @@
                 await saveData();
                 const currentEmployeeId = document.getElementById('adminQueryEmployeeId').value.trim();
                 if (currentEmployeeId === employeeId) await checkAdminBalance();
-                showError("交易記錄刪除成功！");
+                showSuccessMessage("交易記錄刪除成功！");
             } catch (error) {
                 console.error("Error deleting transaction:", error.message);
                 if (error.code === 'PERMISSION_DENIED') {
@@ -982,7 +1009,7 @@
                 await saveData();
                 document.getElementById('setLotteryEmployeeId').value = '';
                 document.getElementById('lotteryChancesInput').value = '';
-                showError(`已為員工 ${employeeId} 設定 ${chances} 次抽獎機會！`);
+                showSuccessMessage(`已為員工 ${employeeId} 設定 ${chances} 次抽獎機會！`);
                 const currentEmployeeId = document.getElementById('adminQueryEmployeeId').value.trim();
                 if (currentEmployeeId === employeeId) checkAdminBalance();
             } catch (error) {
@@ -1021,6 +1048,18 @@
                 `;
                 tbody.appendChild(row);
             });
+        }
+
+        function toggleTransactions() {
+            const table = document.getElementById('transactionTable');
+            const button = document.querySelector('.toggle-btn');
+            if (table.style.display === 'none' || table.style.display === '') {
+                table.style.display = 'table';
+                button.textContent = '收合交易記錄';
+            } else {
+                table.style.display = 'none';
+                button.textContent = '展開交易記錄';
+            }
         }
 
         async function performLottery() {
@@ -1134,6 +1173,7 @@
         window.closeLotteryResult = closeLotteryResult;
         window.exportTransactionsToExcel = exportTransactionsToExcel;
         window.syncEmployeeId = syncEmployeeId;
+        window.toggleTransactions = toggleTransactions;
     </script>
 </body>
 </html>
