@@ -155,7 +155,7 @@
             margin: 5px 0;
             text-align: center;
         }
-        .last-time, .validity-note, .special-message {
+        .last-time, .validity-note, .special-message, .lottery-chances {
             font-size: 0.9rem;
             color: #d81b60;
             margin-top: 5px;
@@ -316,7 +316,8 @@
             <p id="specialMessage" class="special-message"></p>
             <button class="validity-btn" onclick="showValidity()">顯示有效期限</button>
             <p id="validityNote" class="validity-note"></p>
-            <button class="lottery-btn" onclick="showLotteryAuth()">抽獎</button>
+            <button class="lottery-btn" onclick="performLottery()">抽獎</button>
+            <p id="lotteryChances" class="lottery-chances"></p>
         </div>
         <div class="form-group">
             <label for="deposit">存款金額</label>
@@ -344,6 +345,13 @@
                 <button onclick="loginAdmin()">登入</button>
             </div>
             <div id="adminArea" style="display: none;">
+                <div class="form-group">
+                    <label for="setLotteryEmployeeId">設定抽獎次數的員工號</label>
+                    <input type="text" id="setLotteryEmployeeId" placeholder="請輸入員工號">
+                    <label for="lotteryChancesInput">抽獎次數</label>
+                    <input type="number" id="lotteryChancesInput" min="0" placeholder="請輸入抽獎次數">
+                    <button onclick="setLotteryChances()">設定抽獎次數</button>
+                </div>
                 <button class="export-btn" onclick="exportData()">匯出資料</button>
                 <h3>所有交易記錄</h3>
                 <table id="transactionTable">
@@ -368,22 +376,6 @@
     <div class="lottery-result" id="lotteryResultModal">
         <p id="lotteryResultText"></p>
         <button onclick="closeLotteryResult()">關閉</button>
-    </div>
-
-    <div id="lotteryAuthModal" class="modal">
-        <div class="modal-content">
-            <h3>管理員驗證</h3>
-            <div class="form-group">
-                <label for="lotteryUsername">管理員帳號</label>
-                <input type="text" id="lotteryUsername" placeholder="請輸入管理員帳號">
-            </div>
-            <div class="form-group">
-                <label for="lotteryPassword">管理員密碼</label>
-                <input type="password" id="lotteryPassword" placeholder="請輸入管理員密碼">
-            </div>
-            <button onclick="confirmLotteryAuth()">確認</button>
-            <button onclick="closeLotteryAuth()">取消</button>
-        </div>
     </div>
 
     <div id="adminAuthModal" class="modal">
@@ -445,6 +437,7 @@
                 onValue(ref(db, 'bankData'), (snapshot) => {
                     bankData = snapshot.val() || {};
                     checkBalance();
+                    updateLotteryChances();
                 }, (error) => {
                     console.error("Error loading bankData:", error.message);
                     showError(`資料庫錯誤 (bankData): ${error.message}`);
@@ -559,10 +552,11 @@
                 document.getElementById('balance').value = '';
                 document.getElementById('lastDepositTime').textContent = '';
                 document.getElementById('lastWithdrawTime').textContent = '';
+                document.getElementById('lotteryChances').textContent = '';
                 return false;
             }
             if (ALLOWED_EMPLOYEE_IDS.includes(employeeId) && !bankData[employeeId]) {
-                bankData[employeeId] = { balance: 0 };
+                bankData[employeeId] = { balance: 0, lotteryChances: 0 };
                 try {
                     await saveData();
                 } catch (error) {
@@ -593,6 +587,7 @@
 
                 document.getElementById('lastDepositTime').textContent = lastDeposit ? `最後存款時間：${lastDeposit}` : '最後存款時間：無記錄';
                 document.getElementById('lastWithdrawTime').textContent = lastWithdraw ? `最後提款時間：${lastWithdraw}` : '最後提款時間：無記錄';
+                updateLotteryChances();
             }
         }
 
@@ -750,6 +745,8 @@
                     bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) - amount;
                 } else if (type === '提款') {
                     bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) + amount;
+                } else if (type === '抽獎獎金') {
+                    bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) - amount;
                 }
 
                 await remove(ref(db, `transactions/${keyToDelete}`));
@@ -764,8 +761,51 @@
                     bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) + amount;
                 } else if (type === '提款') {
                     bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) - amount;
+                } else if (type === '抽獎獎金') {
+                    bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) + amount;
                 }
                 await checkBalance();
+            }
+        }
+
+        async function setLotteryChances() {
+            if (!isAdminLoggedIn) {
+                showError("請先以管理員身分登入");
+                return;
+            }
+            const employeeId = document.getElementById('setLotteryEmployeeId').value.trim();
+            const chances = parseInt(document.getElementById('lotteryChancesInput').value);
+            
+            if (!validateEmployeeId(employeeId)) return;
+            if (isNaN(chances) || chances < 0) {
+                showError("請輸入有效的抽獎次數");
+                return;
+            }
+
+            try {
+                if (!bankData[employeeId]) {
+                    bankData[employeeId] = { balance: 0, lotteryChances: 0 };
+                }
+                bankData[employeeId].lotteryChances = chances;
+                await saveData();
+                document.getElementById('setLotteryEmployeeId').value = '';
+                document.getElementById('lotteryChancesInput').value = '';
+                showSpecialMessage(`已為員工 ${employeeId} 設定 ${chances} 次抽獎機會！`);
+                const currentEmployeeId = document.getElementById('employeeId').value.trim();
+                if (currentEmployeeId === employeeId) updateLotteryChances();
+            } catch (error) {
+                console.error("Error setting lottery chances:", error.message);
+                showError(`設定抽獎次數失敗: ${error.message}`);
+            }
+        }
+
+        function updateLotteryChances() {
+            const employeeId = document.getElementById('employeeId').value.trim();
+            if (validateEmployeeId(employeeId)) {
+                const chances = bankData[employeeId]?.lotteryChances || 0;
+                document.getElementById('lotteryChances').textContent = `剩餘抽獎次數：${chances}`;
+            } else {
+                document.getElementById('lotteryChances').textContent = '';
             }
         }
 
@@ -787,39 +827,18 @@
             });
         }
 
-        function showLotteryAuth() {
-            const employeeId = document.getElementById('employeeId').value.trim();
-            if (!initializeEmployee(employeeId)) return;
-
-            document.getElementById('lotteryAuthModal').style.display = 'flex';
-            document.getElementById('lotteryUsername').value = '';
-            document.getElementById('lotteryPassword').value = '';
-        }
-
-        function closeLotteryAuth() {
-            document.getElementById('lotteryAuthModal').style.display = 'none';
-        }
-
-        function confirmLotteryAuth() {
-            const username = document.getElementById('lotteryUsername').value.trim();
-            const password = document.getElementById('lotteryPassword').value.trim();
-            const isValidAdmin = ADMIN_CREDENTIALS.some(cred => cred.username === username && cred.password === password);
-            if (isValidAdmin) {
-                closeLotteryAuth();
-                performLottery();
-            } else {
-                showError("管理員帳號或密碼錯誤");
-                document.getElementById('lotteryUsername').value = '';
-                document.getElementById('lotteryPassword').value = '';
-            }
-        }
-
         async function performLottery() {
             const employeeId = document.getElementById('employeeId').value.trim();
             if (!await initializeEmployee(employeeId)) return;
 
             if (!bankData[employeeId]) {
-                bankData[employeeId] = { balance: 0 };
+                bankData[employeeId] = { balance: 0, lotteryChances: 0 };
+            }
+
+            const chances = bankData[employeeId].lotteryChances || 0;
+            if (chances <= 0) {
+                showError("您的抽獎次數不足，請聯繫管理員！");
+                return;
             }
 
             const prizes = [50, 100, 150, 200];
@@ -834,6 +853,7 @@
 
             try {
                 bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) + prize;
+                bankData[employeeId].lotteryChances = chances - 1;
                 await push(ref(db, 'transactions'), {
                     employeeId,
                     type: '抽獎獎金',
@@ -849,6 +869,7 @@
                 console.error("Error during lottery:", error.message);
                 showError(`抽獎獎金儲存失敗: ${error.message}`);
                 bankData[employeeId].balance = (Number(bankData[employeeId].balance) || 0) - prize;
+                bankData[employeeId].lotteryChances = chances;
                 await checkBalance();
             }
         }
@@ -874,9 +895,7 @@
         window.loginAdmin = loginAdmin;
         window.deleteTransaction = deleteTransaction;
         window.exportData = exportData;
-        window.showLotteryAuth = showLotteryAuth;
-        window.closeLotteryAuth = closeLotteryAuth;
-        window.confirmLotteryAuth = confirmLotteryAuth;
+        window.setLotteryChances = setLotteryChances;
         window.performLottery = performLottery;
         window.closeLotteryResult = closeLotteryResult;
     </script>
