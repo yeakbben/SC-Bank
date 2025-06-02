@@ -526,7 +526,11 @@
                 await set(ref(db, 'bankData'), bankData);
             } catch (error) {
                 console.error("Error saving data:", error.message);
-                showError(`儲存失敗: ${error.message}`);
+                if (error.code === 'PERMISSION_DENIED') {
+                    showError("權限拒絕，請聯繫管理員更新資料庫規則！");
+                } else {
+                    showError(`儲存失敗: ${error.message}`);
+                }
                 throw error;
             }
         }
@@ -654,7 +658,11 @@
                 try {
                     await saveData();
                 } catch (error) {
-                    showError(`初始化員工資料失敗: ${error.message}`);
+                    if (error.code === 'PERMISSION_DENIED') {
+                        showError("權限拒絕，無法初始化新員工資料，請聯繫管理員！");
+                    } else {
+                        showError(`初始化失敗: ${error.message}`);
+                    }
                     return false;
                 }
             }
@@ -791,7 +799,11 @@
                 showSpecialMessage("存款成功！");
             } catch (error) {
                 console.error("Error during deposit:", error.message);
-                showError(`存款失敗: ${error.message}`);
+                if (error.code === 'PERMISSION_DENIED') {
+                    showError("權限拒絕，請聯繫管理員更新資料庫規則！");
+                } else {
+                    showError(`存款失敗: ${error.message}`);
+                }
                 bankData[employeeId].deposits = bankData[employeeId].deposits.filter(d => d.depositDate !== deposit.depositDate);
                 await checkBalance();
             }
@@ -848,7 +860,11 @@
                 showSpecialMessage("提款成功！");
             } catch (error) {
                 console.error("Error during withdraw:", error.message);
-                showError(`提款失敗: ${error.message}`);
+                if (error.code === 'PERMISSION_DENIED') {
+                    showError("權限拒絕，請聯繫管理員更新資料庫規則！");
+                } else {
+                    showError(`提款失敗: ${error.message}`);
+                }
                 await checkBalance();
             }
         }
@@ -924,7 +940,11 @@
                 showSpecialMessage("交易記錄刪除成功！");
             } catch (error) {
                 console.error("Error deleting transaction:", error.message);
-                showError(`刪除失敗: ${error.message}`);
+                if (error.code === 'PERMISSION_DENIED') {
+                    showError("權限拒絕，請聯繫管理員更新資料庫規則！");
+                } else {
+                    showError(`刪除失敗: ${error.message}`);
+                }
                 await checkAdminBalance();
             }
         }
@@ -957,7 +977,11 @@
                 if (currentEmployeeId === employeeId) checkAdminBalance();
             } catch (error) {
                 console.error("Error setting lottery chances:", error.message);
-                showError(`設定抽獎次數失敗: ${error.message}`);
+                if (error.code === 'PERMISSION_DENIED') {
+                    showError("權限拒絕，請聯繫管理員更新資料庫規則！");
+                } else {
+                    showError(`設定抽獎次數失敗: ${error.message}`);
+                }
             }
         }
 
@@ -1038,7 +1062,11 @@
                 showSpecialMessage("抽獎成功！");
             } catch (error) {
                 console.error("Error during lottery:", error.message);
-                showError(`抽獎獎金儲存失敗: ${error.message}`);
+                if (error.code === 'PERMISSION_DENIED') {
+                    showError("權限拒絕，請聯繫管理員更新資料庫規則！");
+                } else {
+                    showError(`抽獎獎金儲存失敗: ${error.message}`);
+                }
                 bankData[employeeId].lotteryChances = chances;
                 await checkBalance();
             }
