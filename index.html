@@ -253,20 +253,26 @@
             position: fixed;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%) scale(0);
             background: rgba(255, 245, 247, 0.95);
             padding: 20px;
             border-radius: 12px;
             border: 2px solid #f4c2c2;
             text-align: center;
             z-index: 1001;
-            animation: popIn 0.5s ease-out;
+            animation: popInScale 0.5s ease-out forwards;
             max-width: 90vw;
         }
         .lottery-result p {
             font-family: 'Dancing Script', cursive;
             color: #d81b60;
             font-size: 1.2rem;
+            margin: 10px 0;
+        }
+        .lottery-result .validity-text {
+            font-family: Arial, 'Noto Sans TC', sans-serif;
+            color: #6b4e71;
+            font-size: 0.9rem;
             margin: 10px 0;
         }
         .lottery-result button {
@@ -294,6 +300,10 @@
         @keyframes popIn {
             from { transform: scale(0.8); opacity: 0; }
             to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes popInScale {
+            from { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
         }
         @keyframes slideIn {
             from { transform: translateX(-20px); opacity: 0; }
@@ -481,6 +491,7 @@
     <div class="lottery-overlay" id="lotteryOverlay"></div>
     <div class="lottery-result" id="lotteryResultModal">
         <p id="lotteryResultText"></p>
+        <p id="lotteryExpiryText" class="validity-text"></p>
         <button onclick="closeLotteryResult()">關閉</button>
     </div>
 
@@ -1196,10 +1207,11 @@
                 day: '2-digit'
             });
 
-            // 顯示粉紅色對話框
+            // 顯示粉紅色對話框，包含中獎金額和有效期限
             document.getElementById('lotteryOverlay').style.display = 'block';
             document.getElementById('lotteryResultModal').style.display = 'block';
-            document.getElementById('lotteryResultText').innerHTML = '<成功抽獎!>';
+            document.getElementById('lotteryResultText').innerHTML = `恭喜您抽中 ${prize} 元！`;
+            document.getElementById('lotteryExpiryText').innerHTML = `有效期限至：${formattedExpiryDate}`;
 
             try {
                 bankData[employeeId].deposits.push({
