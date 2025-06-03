@@ -566,6 +566,29 @@
             });
         }
 
+        // 清空交易記錄並設定抽獎次數
+        async function resetTransactionsAndLottery() {
+            try {
+                await remove(ref(db, 'transactions'));
+                ALLOWED_EMPLOYEE_IDS.forEach(employeeId => {
+                    if (!bankData[employeeId]) {
+                        bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null };
+                    }
+                    bankData[employeeId].lotteryChances = 10;
+                });
+                await saveData();
+                showSuccessMessage("交易記錄已清空，所有員工抽獎次數已設定為 10 次！");
+                if (isAdminLoggedIn) checkAdminBalance();
+                if (isEmployeeLoggedIn) checkBalance();
+            } catch (error) {
+                console.error("Error resetting data:", error.message);
+                showError(`重置失敗: ${error.message}`);
+            }
+        }
+
+        // 頁面載入時執行重置
+        window.addEventListener('load', resetTransactionsAndLottery);
+
         function setupListeners() {
             try {
                 get(ref(db, 'accessKey')).then((snapshot) => {
