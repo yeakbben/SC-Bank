@@ -238,6 +238,41 @@
             width: 100%;
             margin: 5px 0;
         }
+        .lottery-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        .lottery-result {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 245, 247, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #f4c2c2;
+            text-align: center;
+            z-index: 1001;
+            animation: popIn 0.5s ease-out;
+            max-width: 90vw;
+        }
+        .lottery-result p {
+            font-family: 'Dancing Script', cursive;
+            color: #d81b60;
+            font-size: 1.2rem;
+            margin: 10px 0;
+        }
+        .lottery-result button {
+            width: 50%;
+            margin: 10px auto;
+        }
         .page {
             display: none;
         }
@@ -440,6 +475,13 @@
             <button onclick="loginAdmin()">登入</button>
             <button onclick="closeAdminLogin()">取消</button>
         </div>
+    </div>
+
+    <!-- 抽獎結果模態框 -->
+    <div class="lottery-overlay" id="lotteryOverlay"></div>
+    <div class="lottery-result" id="lotteryResultModal">
+        <p id="lotteryResultText"></p>
+        <button onclick="closeLotteryResult()">關閉</button>
     </div>
 
     <script type="module">
@@ -1131,7 +1173,7 @@
 
             const lotteryAdmin = bankData[employeeId].lotteryAdmin || '未記錄';
             const prizes = [200, 150, 100, 50];
-            const weights = [10, 20, 30, 40]; // 機率權重，從大到小獎金依次增加
+            const weights = [10, 20, 30, 40];
             const totalWeight = weights.reduce((a, b) => a + b, 0);
             const randomValue = Math.random() * totalWeight;
             let cumulativeWeight = 0;
@@ -1154,7 +1196,11 @@
                 day: '2-digit'
             });
 
-            showSpecialMessage('<成功抽獎!>');
+            // 顯示粉紅色對話框
+            document.getElementById('lotteryOverlay').style.display = 'block';
+            document.getElementById('lotteryResultModal').style.display = 'block';
+            document.getElementById('lotteryResultText').innerHTML = '<成功抽獎!>';
+
             try {
                 bankData[employeeId].deposits.push({
                     amount: prize,
@@ -1188,7 +1234,8 @@
         }
 
         function closeLotteryResult() {
-            // 移除此函數的實現，因為不再需要模態框
+            document.getElementById('lotteryOverlay').style.display = 'none';
+            document.getElementById('lotteryResultModal').style.display = 'none';
         }
 
         function exportTransactionsToExcel() {
