@@ -185,51 +185,13 @@
             font-size: 1rem;
             color: #6b4e71;
         }
-        .last-time, .validity-note, .special-message, .lottery-chances {
+        .last-time, .special-message, .lottery-chances {
             font-size: 0.9rem;
             color: #d81b60;
             margin-top: 5px;
             margin-bottom: 12px;
             text-align: center;
             animation: slideIn 0.5s ease-out;
-        }
-        .lottery-result {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(1);
-            background: #fff;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.3);
-            z-index: 1001;
-            text-align: center;
-            animation: popOut 0.5s ease-out forwards;
-        }
-        .lottery-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-        }
-        @keyframes popOut {
-            0% {
-                transform: translate(-50%, -50%) scale(0.3);
-                opacity: 0;
-            }
-            80% {
-                transform: translate(-50%, -50%) scale(1.1);
-                opacity: 1;
-            }
-            100% {
-                transform: translate(-50%, -50%) scale(1);
-                opacity: 1;
-            }
         }
         table {
             width: 100%;
@@ -478,13 +440,6 @@
             <button onclick="loginAdmin()">登入</button>
             <button onclick="closeAdminLogin()">取消</button>
         </div>
-    </div>
-
-    <!-- 抽獎結果模態框 -->
-    <div class="lottery-overlay" id="lotteryOverlay"></div>
-    <div class="lottery-result" id="lotteryResultModal">
-        <p id="lotteryResultText"></p>
-        <button onclick="closeLotteryResult()">關閉</button>
     </div>
 
     <script type="module">
@@ -985,7 +940,7 @@
                 month: '2-digit',
                 day: '2-digit'
             });
-            document.getElementById('validityNote').textContent = `最早存款/抽獎金額有效期限至：${expiryDate}`;
+            document.getElementById('validityNote').textContent = `最早存款/抽獎金額有效期限至: ${expiryDate}`;
             document.getElementById('validityNote').style.display = 'block';
         }
 
@@ -1176,7 +1131,7 @@
 
             const lotteryAdmin = bankData[employeeId].lotteryAdmin || '未記錄';
             const prizes = [200, 150, 100, 50];
-            const weights = [10, 20, 30, 40]; // 機率權重，從大到小獎金依次增加
+            const weights = [10, 20, 30, 40];
             const totalWeight = weights.reduce((a, b) => a + b, 0);
             const randomValue = Math.random() * totalWeight;
             let cumulativeWeight = 0;
@@ -1199,12 +1154,7 @@
                 day: '2-digit'
             });
 
-            const lotteryOverlay = document.getElementById('lotteryOverlay');
-            const lotteryResultModal = document.getElementById('lotteryResultModal');
-            lotteryOverlay.style.display = 'block';
-            lotteryResultModal.style.display = 'block';
-            document.getElementById('lotteryResultText').innerHTML = `恭喜您抽中 ${prize} 元！<br>請於 ${formattedExpiryDate} 前使用。`;
-
+            showSpecialMessage('<成功抽獎!>');
             try {
                 bankData[employeeId].deposits.push({
                     amount: prize,
@@ -1223,7 +1173,6 @@
                 });
                 await saveData();
                 await checkBalance();
-                showSpecialMessage("抽獎成功！");
             } catch (error) {
                 console.error("Error during lottery:", error.message);
                 if (error.code === 'PERMISSION_DENIED') {
@@ -1239,11 +1188,7 @@
         }
 
         function closeLotteryResult() {
-            const lotteryOverlay = document.getElementById('lotteryOverlay');
-            const lotteryResultModal = document.getElementById('lotteryResultModal');
-            lotteryOverlay.style.display = 'none';
-            lotteryResultModal.style.display = 'none';
-            document.getElementById('lotteryResultText').textContent = '';
+            // 移除此函數的實現，因為不再需要模態框
         }
 
         function exportTransactionsToExcel() {
