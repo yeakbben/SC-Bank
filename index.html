@@ -421,6 +421,8 @@
                 <div class="form-group">
                     <label for="adminDeposit">存款金額</label>
                     <input type="number" id="adminDeposit" min="0" placeholder="請輸入存款金額">
+                    <label for="depositNote">備註</label>
+                    <input type="text" id="depositNote" placeholder="輸入備註（可選）">
                     <button onclick="handleDeposit()">存款</button>
                 </div>
                 <div class="form-group">
@@ -433,6 +435,8 @@
                     <input type="text" id="setLotteryEmployeeId" readonly>
                     <label for="lotteryChancesInput">抽獎次數</label>
                     <input type="number" id="lotteryChancesInput" min="0" placeholder="請輸入抽獎次數">
+                    <label for="lotteryNote">備註</label>
+                    <input type="text" id="lotteryNote" placeholder="輸入備註（可選）">
                     <button onclick="setLotteryChances()">設定抽獎次數</button>
                 </div>
                 <button class="export-btn" onclick="exportTransactionsToExcel()">匯出交易記錄為 Excel</button>
@@ -447,6 +451,7 @@
                             <th>日期</th>
                             <th>餘額</th>
                             <th>管理員</th>
+                            <th>備註</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -865,6 +870,7 @@
             }
             const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
             const amount = parseFloat(document.getElementById('adminDeposit').value);
+            const note = document.getElementById('depositNote').value.trim();
             if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
                 showError("查無此員工");
                 return;
@@ -896,9 +902,11 @@
                     amount,
                     date: deposit.depositDate,
                     balance: calculateBalance(employeeId),
-                    admin: currentAdmin
+                    admin: currentAdmin,
+                    note: note || '無備註'
                 });
                 document.getElementById('adminDeposit').value = '';
+                document.getElementById('depositNote').value = '';
                 showSuccessMessage("存款成功！");
                 await checkAdminBalance();
             } catch (error) {
@@ -1068,6 +1076,7 @@
             }
             const employeeId = document.getElementById('setLotteryEmployeeId').value.trim();
             const chances = parseInt(document.getElementById('lotteryChancesInput').value);
+            const note = document.getElementById('lotteryNote').value.trim();
             
             if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
                 showError("查無此員工");
@@ -1089,6 +1098,16 @@
                 console.log(`Setting lottery chances for ${employeeId} to ${chances}`);
                 await saveData();
                 
+                await push(ref(db, 'transactions'), {
+                    employeeId,
+                    type: '設定抽獎次數',
+                    amount: chances,
+                    date: new Date().toLocaleString('zh-TW'),
+                    balance: calculateBalance(employeeId),
+                    admin: currentAdmin,
+                    note: note || '無備註'
+                });
+
                 // 立即從資料庫重新讀取，確認保存成功
                 const snapshot = await get(ref(db, `bankData/${employeeId}`));
                 const savedData = snapshot.val();
@@ -1096,6 +1115,7 @@
                     console.log(`Successfully verified lottery chances: ${chances}`);
                     document.getElementById('setLotteryEmployeeId').value = '';
                     document.getElementById('lotteryChancesInput').value = '';
+                    document.getElementById('lotteryNote').value = '';
                     showSuccessMessage(`已為員工 ${employeeId} 設定 ${chances} 次抽獎機會！`);
                     const currentEmployeeId = document.getElementById('adminQueryEmployeeId').value.trim();
                     if (currentEmployeeId === employeeId) checkAdminBalance();
@@ -1138,6 +1158,7 @@
                     <td data-label="日期">${t.date}</td>
                     <td data-label="餘額">${t.balance}</td>
                     <td data-label="管理員">${t.admin || '未記錄'}</td>
+                    <td data-label="備註">${t.note || '無備註'}</td>
                     <td data-label="操作"><button class="delete-btn" onclick="deleteTransaction(${index})">刪除</button></td>
                 `;
                 tbody.appendChild(row);
@@ -1258,7 +1279,8 @@
                 '金額': t.amount,
                 '日期': t.date,
                 '餘額': t.balance,
-                '管理員': t.admin || '未記錄'
+                '管理員': t.admin || '未記錄',
+                '備註': t.note || '無備註'
             }));
             const ws = XLSX.utils.json_to_sheet(wsData);
             XLSX.utils.book_append_sheet(wb, ws, "交易記錄");
@@ -1289,7 +1311,8 @@
                 '金額': t.amount,
                 '日期': t.date,
                 '餘額': t.balance,
-                '管理員': t.admin || '未記錄'
+                '管理員': t.admin || '未記錄',
+                '備註': t.note || '無備註'
             }));
             const ws = XLSX.utils.json_to_sheet(wsData);
             XLSX.utils.book_append_sheet(wb, ws, `交易記錄_${employeeId}`);
