@@ -528,6 +528,7 @@
         let currentEmployee = null;
         let retryCount = 0;
         const MAX_RETRIES = 3;
+        let isLotteryInProgress = false; // 新增鎖定變數
 
         // 初始化資料庫（手動觸發）
         function initializeDatabase() {
@@ -1152,8 +1153,18 @@
         }
 
         async function performLottery() {
+            if (isLotteryInProgress) {
+                showError("抽獎正在處理中，請稍後再試！");
+                return;
+            }
+
+            isLotteryInProgress = true;
+
             const employeeId = document.getElementById('employeeId').value.trim();
-            if (!await initializeEmployee(employeeId)) return;
+            if (!await initializeEmployee(employeeId)) {
+                isLotteryInProgress = false;
+                return;
+            }
 
             if (!bankData[employeeId]) {
                 bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null };
@@ -1162,6 +1173,7 @@
             const chances = bankData[employeeId].lotteryChances || 0;
             if (chances <= 0) {
                 showError("您的抽獎次數不足，請聯繫管理員！");
+                isLotteryInProgress = false;
                 return;
             }
 
@@ -1211,8 +1223,10 @@
                 } else {
                     showError(`抽獎獎金儲存失敗: ${error.message}`);
                 }
-                bankData[employeeId].lotteryChances = chances;
+                bankData[employeeId].lotteryChances = chances; // 回滾抽獎次數
                 await checkBalance();
+            } finally {
+                isLotteryInProgress = false;
             }
         }
 
