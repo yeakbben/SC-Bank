@@ -1163,7 +1163,7 @@
             const employeeId = document.getElementById('employeeId').value.trim();
             if (validateEmployeeId(employeeId)) {
                 const chances = bankData[employeeId]?.lotteryChances || 0;
-                document.getElementById('lotteryChances').innerHTML = `剩餘抽獎次數：${chances}<br><small>（次數不足時請聯繫管理員）</small>`;
+                document.getElementById('lotteryChances').innerHTML = `剩餘抽獎次數：${chances}<br><small>（次數不足時，請努力獲得~加油!）</small>`;
             } else {
                 document.getElementById('lotteryChances').textContent = '';
             }
