@@ -520,7 +520,7 @@
             "10014576", "10012088", "2802301", "2802862", "2802670", 
             "10014567", "2803297", "10015181", "2802269", "10013395", 
             "2804007", "10014339", "10014378", "2802663",
-            ...ADMIN_IDS // 包含管理員 ID
+            ...ADMIN_IDS
         ];
         let isAdminLoggedIn = false;
         let currentAdmin = null;
@@ -529,25 +529,24 @@
         let retryCount = 0;
         const MAX_RETRIES = 3;
 
-        // 初始化資料庫，將所有數據歸零（僅執行一次）
+        // 初始化資料庫（手動觸發）
         function initializeDatabase() {
             set(ref(db, 'bankData'), {}).then(() => {
-                console.log("bankData 已歸零");
+                console.log("BankData 已清空");
             }).catch((error) => {
-                console.error("歸零 bankData 失敗:", error.message);
+                console.error("清空 bankData 失敗:", error.message);
                 showError("初始化資料庫失敗，請聯繫管理員");
             });
 
             remove(ref(db, 'transactions')).then(() => {
-                console.log("transactions 已歸零");
+                console.log("Transactions 已清空");
             }).catch((error) => {
-                console.error("歸零 transactions 失敗:", error.message);
+                console.error("清空 transactions 失敗:", error.message);
                 showError("初始化資料庫失敗，請聯繫管理員");
             });
 
-            // 確保 accessKey 存在
             set(ref(db, 'accessKey'), "scbank2025").then(() => {
-                console.log("accessKey 已設置");
+                console.log("AccessKey 已設置");
             }).catch((error) => {
                 console.error("設置 accessKey 失敗:", error.message);
             });
@@ -558,7 +557,7 @@
                 get(ref(db, 'accessKey')).then((snapshot) => {
                     const accessKey = snapshot.val();
                     if (accessKey !== "scbank2025") {
-                        showError("資料庫訪問密碼錯誤，請聯繫管理員");
+                        showError("資料庫訪問密碼錯誤");
                         return;
                     }
 
@@ -608,18 +607,20 @@
                     showError(`初始化失敗: ${e.message}，${MAX_RETRIES - retryCount} 次後停止重試`);
                     setTimeout(setupListeners, 5000);
                 } else {
-                    showError(`初始化失敗，已達最大重試次數 (${MAX_RETRIES})，請聯繫管理員`);
+                    showError(`初始化失敗，已達最大重試次數 (${MAX_RETRIES})`);
                 }
             }
         }
 
-        // 啟動時執行初始化
-        initializeDatabase();
+        // 不要自動執行 initializeDatabase
+        // initializeDatabase(); // 已移除自動執行
+
         setupListeners();
 
         async function saveData() {
             try {
                 await set(ref(db, 'bankData'), bankData);
+                console.log("Data successfully saved to bankData");
             } catch (error) {
                 console.error("Error saving data:", error.message);
                 if (error.code === 'PERMISSION_DENIED') {
@@ -1056,7 +1057,7 @@
 
         async function setLotteryChances() {
             if (!isAdminLoggedIn) {
-                showError("請先以管理員身分登入");
+                showError("請先以管理員身份登入");
                 return;
             }
             const employeeId = document.getElementById('setLotteryEmployeeId').value.trim();
@@ -1076,20 +1077,35 @@
                 if (!bankData[employeeId]) {
                     bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null };
                 }
+                const previousChances = bankData[employeeId].lotteryChances || 0;
                 bankData[employeeId].lotteryChances = chances;
                 bankData[employeeId].lotteryAdmin = currentAdmin;
+                console.log(`Setting lottery chances for ${employeeId} to ${chances}`);
                 await saveData();
-                document.getElementById('setLotteryEmployeeId').value = '';
-                document.getElementById('lotteryChancesInput').value = '';
-                showSuccessMessage(`已為員工 ${employeeId} 設定 ${chances} 次抽獎機會！`);
-                const currentEmployeeId = document.getElementById('adminQueryEmployeeId').value.trim();
-                if (currentEmployeeId === employeeId) checkAdminBalance();
+                
+                // 立即從資料庫重新讀取，確認保存成功
+                const snapshot = await get(ref(db, `bankData/${employeeId}`));
+                const savedData = snapshot.val();
+                if (savedData && savedData.lotteryChances === chances) {
+                    console.log(`Successfully verified lottery chances: ${chances}`);
+                    document.getElementById('setLotteryEmployeeId').value = '';
+                    document.getElementById('lotteryChancesInput').value = '';
+                    showSuccessMessage(`已為員工 ${employeeId} 設定 ${chances} 次抽獎機會！`);
+                    const currentEmployeeId = document.getElementById('adminQueryEmployeeId').value.trim();
+                    if (currentEmployeeId === employeeId) checkAdminBalance();
+                } else {
+                    throw new Error("抽獎次數保存失敗，資料庫未更新");
+                }
             } catch (error) {
                 console.error("Error setting lottery chances:", error.message);
                 if (error.code === 'PERMISSION_DENIED') {
-                    showError("權限拒絕，請聯繫管理員更新資料庫規則！");
+                    showError("權限操作失敗，請聯繫管理員更新資料庫規則！");
                 } else {
-                    showError(`設定抽獎次數失敗: ${error.message}`);
+                    showError(`設定失敗: ${error.message}`);
+                }
+                // 回滾本地數據
+                if (bankData[employeeId]) {
+                    bankData[employeeId].lotteryChances = previousChances;
                 }
             }
         }
