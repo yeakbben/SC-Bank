@@ -144,12 +144,6 @@
         .export-btn:hover, .export-btn:active {
             background: linear-gradient(45deg, #ffb300, #e6a800);
         }
-        .backup-btn {
-            background: linear-gradient(45deg, #17a2b8, #117a8b);
-        }
-        .backup-btn:hover, .backup-btn:active {
-            background: linear-gradient(45deg, #117a8b, #0d6d7d);
-        }
         .lottery-btn {
             background: linear-gradient(45deg, #ff6f61, #ff3d7f);
         }
@@ -442,7 +436,6 @@
                     <button onclick="setLotteryChances()">設定抽獎次數</button>
                 </div>
                 <button class="export-btn" onclick="exportTransactionsToExcel()">匯出交易記錄為 Excel</button>
-                <button class="backup-btn" onclick="backupAndSendTransactions()">備份並發送交易記錄</button>
                 <h3>所有交易記錄</h3>
                 <button class="toggle-btn" onclick="toggleTransactions()">展開交易記錄</button>
                 <table id="transactionTable">
@@ -1277,56 +1270,6 @@
             a.download = `all_transactions_${new Date().toISOString().split('T')[0]}.xlsx`;
             a.click();
             URL.revokeObjectURL(url);
-            return blob; // 返回 Blob 物件以供發送郵件使用
-        }
-
-        async function backupAndSendTransactions() {
-            if (!isAdminLoggedIn) {
-                showError("請先以管理員身份登入");
-                return;
-            }
-
-            if (transactions.length === 0) {
-                showError("無交易記錄可備份");
-                return;
-            }
-
-            try {
-                // 生成 Excel 檔案
-                const blob = exportTransactionsToExcel();
-
-                // 將 Blob 轉換為 Base64 字串以便傳送
-                const reader = new FileReader();
-                reader.readAsDataURL(blob);
-                reader.onloadend = async function() {
-                    const base64Data = reader.result.split(',')[1]; // 移除 "data:application/octet-stream;base64," 前綴
-
-                    // 模擬發送請求到後端 API
-                    // 注意：這裡需要後端 API 來實際處理發送郵件
-                    const response = await fetch('YOUR_BACKEND_API_ENDPOINT', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            fileData: base64Data,
-                            fileName: `all_transactions_${new Date().toISOString().split('T')[0]}.xlsx`,
-                            toEmail: 'Ivan.lin@dfs.com',
-                            subject: `每日交易紀錄備份 - ${new Date().toISOString().split('T')[0]}`,
-                            body: '請找到附件中的每日交易紀錄備份檔案。'
-                        })
-                    });
-
-                    if (response.ok) {
-                        showSuccessMessage("交易紀錄已成功備份並發送至 Ivan.lin@dfs.com！");
-                    } else {
-                        throw new Error("後端 API 請求失敗");
-                    }
-                };
-            } catch (error) {
-                console.error("Error during backup and send:", error.message);
-                showError("備份並發送交易紀錄失敗，請聯繫技術支持並設置後端 API！");
-            }
         }
 
         function exportEmployeeTransactionsToExcel() {
@@ -1381,7 +1324,6 @@
         window.performLottery = performLottery;
         window.closeLotteryResult = closeLotteryResult;
         window.exportTransactionsToExcel = exportTransactionsToExcel;
-        window.backupAndSendTransactions = backupAndSendTransactions;
         window.exportEmployeeTransactionsToExcel = exportEmployeeTransactionsToExcel;
         window.syncEmployeeId = syncEmployeeId;
         window.toggleTransactions = toggleTransactions;
