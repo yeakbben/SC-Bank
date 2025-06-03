@@ -1131,7 +1131,7 @@
 
             const lotteryAdmin = bankData[employeeId].lotteryAdmin || '未記錄';
             const prizes = [200, 150, 100, 50];
-            const weights = [10, 20, 30, 40];
+            const weights = [10, 20, 30, 40]; // 機率權重，從大到小獎金依次增加
             const totalWeight = weights.reduce((a, b) => a + b, 0);
             const randomValue = Math.random() * totalWeight;
             let cumulativeWeight = 0;
