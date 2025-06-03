@@ -528,7 +528,7 @@
         let currentEmployee = null;
         let retryCount = 0;
         const MAX_RETRIES = 3;
-        let isLotteryInProgress = false; // 新增鎖定變數
+        let isLotteryInProgress = false;
 
         // 初始化資料庫（手動觸發）
         function initializeDatabase() {
@@ -612,9 +612,6 @@
                 }
             }
         }
-
-        // 不要自動執行 initializeDatabase
-        // initializeDatabase(); // 已移除自動執行
 
         setupListeners();
 
@@ -1178,9 +1175,20 @@
             }
 
             const lotteryAdmin = bankData[employeeId].lotteryAdmin || '未記錄';
-            const prizes = [50, 100, 150, 200];
-            const randomIndex = Math.floor(Math.random() * prizes.length);
-            const prize = prizes[randomIndex];
+            const prizes = [200, 150, 100, 50];
+            const weights = [10, 20, 30, 40]; // 機率權重，從大到小獎金依次增加
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            const randomValue = Math.random() * totalWeight;
+            let cumulativeWeight = 0;
+            let prize = 0;
+
+            for (let i = 0; i < weights.length; i++) {
+                cumulativeWeight += weights[i];
+                if (randomValue <= cumulativeWeight) {
+                    prize = prizes[i];
+                    break;
+                }
+            }
 
             const depositDate = new Date();
             const expiryDate = new Date(depositDate);
@@ -1223,7 +1231,7 @@
                 } else {
                     showError(`抽獎獎金儲存失敗: ${error.message}`);
                 }
-                bankData[employeeId].lotteryChances = chances; // 回滾抽獎次數
+                bankData[employeeId].lotteryChances = chances;
                 await checkBalance();
             } finally {
                 isLotteryInProgress = false;
