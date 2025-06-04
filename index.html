@@ -543,9 +543,6 @@
         const MAX_RETRIES = 3;
         let isLotteryInProgress = false;
 
-        // 移除頁面載入時的重置
-        // window.addEventListener('load', resetTransactionsAndLottery);
-
         // 初始化資料庫（手動觸發）
         function initializeDatabase() {
             set(ref(db, 'bankData'), {}).then(() => {
@@ -569,19 +566,19 @@
             });
         }
 
-        // 清空交易記錄並設定抽獎次數（手動觸發）
+        // 清空交易記錄並重置員工數據（抽獎次數設為 0）
         async function resetTransactionsAndLottery() {
             try {
                 await remove(ref(db, 'transactions'));
                 const updates = {};
                 ALLOWED_EMPLOYEE_IDS.forEach(employeeId => {
-                    updates[`bankData/${employeeId}/lotteryChances`] = 10;
                     updates[`bankData/${employeeId}/deposits`] = [];
+                    updates[`bankData/${employeeId}/lotteryChances`] = 0; // 將抽獎次數設為 0
                     updates[`bankData/${employeeId}/lotteryAdmin`] = null;
                     updates[`bankData/${employeeId}/lotteryNote`] = null;
                 });
                 await set(ref(db, 'bankData'), updates);
-                showSuccessMessage("交易記錄已清空，所有員工抽獎次數已設定為 10 次！");
+                showSuccessMessage("交易記錄已清空，所有員工抽獎次數已設定為 0 次！");
                 if (isAdminLoggedIn) checkAdminBalance();
                 if (isEmployeeLoggedIn) checkBalance();
             } catch (error) {
@@ -808,7 +805,7 @@
                 return false;
             }
             if (!bankData[employeeId]) {
-                bankData[employeeId] = { deposits: [], lotteryChances: 10, lotteryAdmin: null, lotteryNote: null };
+                bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null, lotteryNote: null }; // 初始抽獎次數設為 0
                 await saveData();
             }
             return true;
@@ -854,7 +851,7 @@
                 document.getElementById('lastDepositTime').textContent = lastDeposit ? `最後存款/抽獎時間：${lastDeposit}` : '最後存款/抽獎時間：無記錄';
                 document.getElementById('lastWithdrawTime').textContent = lastWithdraw ? `最後提款時間：${lastWithdraw}` : '最後提款時間：無記錄';
                 updateLotteryChances();
-                await saveData(); // 確保數據保存
+                await saveData();
             }
         }
 
@@ -871,7 +868,7 @@
                 document.getElementById('adminBalance').value = balance;
                 const chances = bankData[employeeId]?.lotteryChances || 0;
                 document.getElementById('adminLotteryChances').textContent = `剩餘抽獎次數：${chances}`;
-                await saveData(); // 確保數據保存
+                await saveData();
             }
         }
 
@@ -1261,7 +1258,7 @@
                     admin: lotteryAdmin,
                     note: lotteryNote
                 });
-                await saveData(); // 確保數據保存
+                await saveData();
                 await checkBalance();
             } catch (error) {
                 console.error("Error during lottery:", error.message);
@@ -1271,7 +1268,7 @@
                     showError(`抽獎獎金儲存失敗: ${error.message}`);
                 }
                 bankData[employeeId].lotteryChances = chances;
-                bankData[employeeId].deposits.pop(); // 回滾存款
+                bankData[employeeId].deposits.pop();
                 await saveData();
                 await checkBalance();
             } finally {
