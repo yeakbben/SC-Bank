@@ -529,9 +529,9 @@
         ];
         const ADMIN_IDS = ["2802312", "2801433", "2802229", "2802235"];
         const ALLOWED_EMPLOYEE_IDS = [
-            "10011985", "2801937", "2802155", "10014584", "2803219", 
-            "10014576", "10012088", "2802301", "2802862", "2802670", 
-            "10014567", "2803297", "10015181", "2802269", "10013395", 
+            "10011985", "2801937", "2802155", "10014584", "2803219",
+            "10014576", "10012088", "2802301", "2802862", "2802670",
+            "10014567", "2803297", "10015181", "2802269", "10013395",
             "2804007", "10014339", "10014378", "2802663",
             ...ADMIN_IDS
         ];
@@ -542,6 +542,9 @@
         let retryCount = 0;
         const MAX_RETRIES = 3;
         let isLotteryInProgress = false;
+
+        // 移除頁面載入時的重置
+        // window.addEventListener('load', resetTransactionsAndLottery);
 
         // 初始化資料庫（手動觸發）
         function initializeDatabase() {
@@ -566,17 +569,18 @@
             });
         }
 
-        // 清空交易記錄並設定抽獎次數
+        // 清空交易記錄並設定抽獎次數（手動觸發）
         async function resetTransactionsAndLottery() {
             try {
                 await remove(ref(db, 'transactions'));
+                const updates = {};
                 ALLOWED_EMPLOYEE_IDS.forEach(employeeId => {
-                    if (!bankData[employeeId]) {
-                        bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null, lotteryNote: null };
-                    }
-                    bankData[employeeId].lotteryChances = 10;
+                    updates[`bankData/${employeeId}/lotteryChances`] = 10;
+                    updates[`bankData/${employeeId}/deposits`] = [];
+                    updates[`bankData/${employeeId}/lotteryAdmin`] = null;
+                    updates[`bankData/${employeeId}/lotteryNote`] = null;
                 });
-                await saveData();
+                await set(ref(db, 'bankData'), updates);
                 showSuccessMessage("交易記錄已清空，所有員工抽獎次數已設定為 10 次！");
                 if (isAdminLoggedIn) checkAdminBalance();
                 if (isEmployeeLoggedIn) checkBalance();
@@ -585,9 +589,6 @@
                 showError(`重置失敗: ${error.message}`);
             }
         }
-
-        // 頁面載入時執行重置
-        window.addEventListener('load', resetTransactionsAndLottery);
 
         function setupListeners() {
             try {
@@ -600,6 +601,7 @@
 
                     onValue(ref(db, 'bankData'), (snapshot) => {
                         bankData = snapshot.val() || {};
+                        console.log("BankData updated:", bankData);
                         if (isEmployeeLoggedIn) checkBalance();
                         if (isAdminLoggedIn) checkAdminBalance();
                         updateLotteryChances();
@@ -616,9 +618,10 @@
                     });
 
                     onValue(ref(db, 'transactions'), (snapshot) => {
-                        const data = snapshot.val();
-                        transactions = data ? Object.values(data) : [];
-                        transactionKeys = data ? Object.keys(data) : [];
+                        const data = snapshot.val() || {};
+                        transactions = Object.values(data);
+                        transactionKeys = Object.keys(data);
+                        console.log("Transactions updated:", transactions);
                         updateAdminTable();
                         if (isEmployeeLoggedIn) checkBalance();
                         if (isAdminLoggedIn) checkAdminBalance();
@@ -654,7 +657,7 @@
         async function saveData() {
             try {
                 await set(ref(db, 'bankData'), bankData);
-                console.log("Data successfully saved to bankData");
+                console.log("Data successfully saved to bankData at", new Date().toLocaleString('zh-TW'));
             } catch (error) {
                 console.error("Error saving data:", error.message);
                 if (error.code === 'PERMISSION_DENIED') {
@@ -672,7 +675,7 @@
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit'
-            });
+            }) + ' ' + today.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
             document.getElementById('currentDate').value = formattedDate;
         }
 
@@ -805,17 +808,8 @@
                 return false;
             }
             if (!bankData[employeeId]) {
-                bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null, lotteryNote: null };
-                try {
-                    await saveData();
-                } catch (error) {
-                    if (error.code === 'PERMISSION_DENIED') {
-                        showError("權限拒絕，無法初始化新員工資料，請聯繫管理員！");
-                    } else {
-                        showError(`初始化失敗: ${error.message}`);
-                    }
-                    return false;
-                }
+                bankData[employeeId] = { deposits: [], lotteryChances: 10, lotteryAdmin: null, lotteryNote: null };
+                await saveData();
             }
             return true;
         }
@@ -860,7 +854,7 @@
                 document.getElementById('lastDepositTime').textContent = lastDeposit ? `最後存款/抽獎時間：${lastDeposit}` : '最後存款/抽獎時間：無記錄';
                 document.getElementById('lastWithdrawTime').textContent = lastWithdraw ? `最後提款時間：${lastWithdraw}` : '最後提款時間：無記錄';
                 updateLotteryChances();
-                await saveData();
+                await saveData(); // 確保數據保存
             }
         }
 
@@ -877,7 +871,7 @@
                 document.getElementById('adminBalance').value = balance;
                 const chances = bankData[employeeId]?.lotteryChances || 0;
                 document.getElementById('adminLotteryChances').textContent = `剩餘抽獎次數：${chances}`;
-                await saveData();
+                await saveData(); // 確保數據保存
             }
         }
 
@@ -1118,8 +1112,7 @@
                 const previousChances = bankData[employeeId].lotteryChances || 0;
                 bankData[employeeId].lotteryChances = chances;
                 bankData[employeeId].lotteryAdmin = currentAdmin;
-                bankData[employeeId].lotteryNote = note || '無備註'; // 儲存備註
-                console.log(`Setting lottery chances for ${employeeId} to ${chances} with note: ${bankData[employeeId].lotteryNote}`);
+                bankData[employeeId].lotteryNote = note || '無備註';
                 await saveData();
                 
                 await push(ref(db, 'transactions'), {
@@ -1135,7 +1128,6 @@
                 const snapshot = await get(ref(db, `bankData/${employeeId}`));
                 const savedData = snapshot.val();
                 if (savedData && savedData.lotteryChances === chances) {
-                    console.log(`Successfully verified lottery chances: ${chances}`);
                     document.getElementById('setLotteryEmployeeId').value = '';
                     document.getElementById('lotteryChancesInput').value = '';
                     document.getElementById('lotteryNote').value = '';
@@ -1214,11 +1206,7 @@
                 return;
             }
 
-            if (!bankData[employeeId]) {
-                bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null, lotteryNote: null };
-            }
-
-            const chances = bankData[employeeId].lotteryChances || 0;
+            const chances = bankData[employeeId]?.lotteryChances || 0;
             if (chances <= 0) {
                 showError("您的抽獎次數不足，請努力獲得~加油!");
                 isLotteryInProgress = false;
@@ -1226,7 +1214,7 @@
             }
 
             const lotteryAdmin = bankData[employeeId].lotteryAdmin || '未記錄';
-            const lotteryNote = bankData[employeeId].lotteryNote || '無備註'; // 使用儲存的備註
+            const lotteryNote = bankData[employeeId].lotteryNote || '無備註';
             const prizes = [200, 150, 100, 50];
             const weights = [10, 20, 30, 40];
             const totalWeight = weights.reduce((a, b) => a + b, 0);
@@ -1244,7 +1232,7 @@
 
             const depositDate = new Date();
             const expiryDate = new Date(depositDate);
-            expiryDate.setDate(depositDate.getDate() + 15); // 設置 15 天有效期
+            expiryDate.setDate(depositDate.getDate() + 15);
             const formattedExpiryDate = expiryDate.toLocaleDateString('zh-TW', {
                 year: 'numeric',
                 month: '2-digit',
@@ -1268,12 +1256,12 @@
                     employeeId,
                     type: '抽獎獎金',
                     amount: prize,
-                    date: new Date().toLocaleString('zh-TW'),
+                    date: depositDate.toLocaleString('zh-TW'),
                     balance: balance,
                     admin: lotteryAdmin,
-                    note: lotteryNote // 使用與設定抽獎次數相同的備註
+                    note: lotteryNote
                 });
-                await saveData();
+                await saveData(); // 確保數據保存
                 await checkBalance();
             } catch (error) {
                 console.error("Error during lottery:", error.message);
@@ -1283,6 +1271,8 @@
                     showError(`抽獎獎金儲存失敗: ${error.message}`);
                 }
                 bankData[employeeId].lotteryChances = chances;
+                bankData[employeeId].deposits.pop(); // 回滾存款
+                await saveData();
                 await checkBalance();
             } finally {
                 isLotteryInProgress = false;
@@ -1373,6 +1363,8 @@
         window.exportEmployeeTransactionsToExcel = exportEmployeeTransactionsToExcel;
         window.syncEmployeeId = syncEmployeeId;
         window.toggleTransactions = toggleTransactions;
+        window.initializeDatabase = initializeDatabase;
+        window.resetTransactionsAndLottery = resetTransactionsAndLottery;
     </script>
 </body>
 </html>
