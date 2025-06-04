@@ -3,311 +3,1376 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>SC 小金庫</title>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Dancing+Script:wght@400&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .hidden { display: none; }
-        button { margin: 5px; padding: 5px 10px; }
-        table { border-collapse: collapse; width: 100%; }
-        td, th { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        body {
+            font-family: Arial, 'Noto Sans TC', sans-serif;
+            margin: 0 auto;
+            padding: 10px;
+            background-color: #f8e1e9;
+            font-size: 16px;
+            position: relative;
+            overflow-x: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9') center/cover no-repeat;
+            opacity: 0.1;
+            z-index: -1;
+        }
+        @supports not (background-image: url()) {
+            body::before {
+                background-color: #f8e1e9;
+            }
+        }
+        h1 {
+            font-family: 'Playfair Display', serif;
+            color: #fff;
+            text-align: center;
+            background: linear-gradient(45deg, #f4c2c2, #d81b60);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            font-size: 2em;
+            font-weight: 700;
+            margin: 10px 0 20px;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        h2, h3 {
+            font-family: 'Dancing Script', cursive;
+            color: #6b4e71;
+            text-align: center;
+            font-size: 1.5em;
+        }
+        .container {
+            background: linear-gradient(180deg, #fff, #fff5f7);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 0 12px rgba(0,0,0,0.1);
+            border: 1px solid #f4c2c2;
+            width: 90vw;
+            margin: 0 auto;
+            animation: fadeIn 1s ease-out;
+        }
+        .form-group {
+            margin-bottom: 12px;
+            text-align: center;
+            position: relative;
+        }
+        .employee-id-hint {
+            font-size: 0.9rem;
+            color: #d81b60;
+            margin-top: 5px;
+            margin-bottom: 5px;
+            text-align: center;
+            animation: slideIn 0.5s ease-out;
+            position: absolute;
+            top: -25px;
+            left: 0;
+            width: 100%;
+        }
+        label {
+            font-family: 'Dancing Script', cursive;
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #6b4e71;
+        }
+        input[type="text"], input[type="number"], input[type="password"], input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #f4c2c2;
+            border-radius: 8px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            background-color: #fff5f7;
+            transition: box-shadow 0.3s ease;
+        }
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 8px #f4c2c2;
+        }
+        button {
+            padding: 12px 20px;
+            background: linear-gradient(45deg, #f4c2c2, #d81b60);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 8px;
+            width: auto;
+            min-width: 120px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover, button:active {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px #f4c2c2;
+        }
+        .query-btn {
+            background: linear-gradient(45deg, #28a745, #218838);
+        }
+        .query-btn:hover, .query-btn:active {
+            background: linear-gradient(45deg, #218838, #1e7e34);
+        }
+        .validity-btn {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+        }
+        .validity-btn:hover, .validity-btn:active {
+            background: linear-gradient(45deg, #0056b3, #003d7a);
+        }
+        .delete-btn {
+            background: linear-gradient(45deg, #dc3545, #c82333);
+        }
+        .delete-btn:hover, .delete-btn:active {
+            background: linear-gradient(45deg, #c82333, #b21f2d);
+        }
+        .export-btn {
+            background: linear-gradient(45deg, #ffca28, #ffb300);
+        }
+        .export-btn:hover, .export-btn:active {
+            background: linear-gradient(45deg, #ffb300, #e6a800);
+        }
+        .lottery-btn {
+            background: linear-gradient(45deg, #ff6f61, #ff3d7f);
+        }
+        .lottery-btn:hover, .lottery-btn:active {
+            background: linear-gradient(45deg, #ff3d7f, #e62e6b);
+        }
+        .toggle-btn {
+            background: linear-gradient(45deg, #6b4e71, #4b304f);
+        }
+        .toggle-btn:hover, .toggle-btn:active {
+            background: linear-gradient(45deg, #4b304f, #3b203f);
+        }
+        .admin-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px dashed #f4c2c2;
+        }
+        .error, .success {
+            position: relative;
+            padding: 10px;
+            font-size: 0.9rem;
+            margin: 5px 0;
+            text-align: center;
+        }
+        .error {
+            color: #d81b60;
+        }
+        .success {
+            color: #28a745;
+        }
+        .error button, .success button {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #6b4e71;
+        }
+        .last-time, .special-message, .lottery-chances {
+            font-size: 0.9rem;
+            color: #d81b60;
+            margin-top: 5px;
+            margin-bottom: 12px;
+            text-align: center;
+            animation: slideIn 0.5s ease-out;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            background-color: #fff;
+            display: none;
+        }
+        th, td {
+            border: 1px solid #f4c2c2;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #6b4e71;
+            color: #fff;
+        }
+        tr:nth-child(even) {
+            background-color: #fff5f7;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: rgba(255, 245, 247, 0.95);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #f4c2c2;
+            width: 80vw;
+            max-width: 300px;
+            animation: popIn 0.5s ease-out;
+        }
+        .modal-content button {
+            width: 100%;
+            margin: 5px 0;
+        }
+        .lottery-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        .lottery-result {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: rgba(255, 245, 247, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #f4c2c2;
+            text-align: center;
+            z-index: 1001;
+            animation: popInScale 0.5s ease-out forwards;
+            max-width: 90vw;
+        }
+        .lottery-result p {
+            font-family: 'Dancing Script', cursive;
+            color: #d81b60;
+            font-size: 1.2rem;
+            margin: 10px 0;
+        }
+        .lottery-result .validity-text {
+            font-family: Arial, 'Noto Sans TC', sans-serif;
+            color: #6b4e71;
+            font-size: 0.9rem;
+            margin: 10px 0;
+        }
+        .lottery-result button {
+            width: 50%;
+            margin: 10px auto;
+        }
+        .page {
+            display: none;
+        }
+        .page.active {
+            display: block;
+        }
+        .main-buttons {
+            text-align: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes glow {
+            from { box-shadow: 0 0 8px rgba(244, 194, 194, 0.5); }
+            to { box-shadow: 0 0 16px rgba(244, 194, 194, 1); }
+        }
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes popInScale {
+            from { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @media screen and (max-width: 600px) {
+            table, thead, tbody, th, td, tr {
+                display: block;
+            }
+            thead tr {
+                display: none;
+            }
+            tr {
+                margin-bottom: 10px;
+                border: 1px solid #f4c2c2;
+                border-radius: 8px;
+            }
+            td {
+                border: none;
+                position: relative;
+                padding-left: 50%;
+                text-align: right;
+            }
+            td:before {
+                content: attr(data-label);
+                position: absolute;
+                left: 10px;
+                width: 45%;
+                font-weight: bold;
+                text-align: left;
+                font-family: 'Dancing Script', cursive;
+                color: #6b4e71;
+            }
+            button {
+                width: 100%;
+            }
+        }
+
+        @media screen and (max-width: 400px) {
+            h1 {
+                font-size: 1.8em;
+                padding: 12px;
+            }
+            .container {
+                padding: 10px;
+            }
+            input[type="text"], input[type="number"], input[type="password"], input[type="date"] {
+                padding: 8px;
+                font-size: 0.9rem;
+            }
+            button {
+                padding: 8px;
+                min-width: 100px;
+                font-size: 0.9rem;
+                margin: 5px;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>SC 小金庫</h1>
+    <div class="container">
+        <h1>SC 小金庫</h1>
 
-    <!-- 員工登入 -->
-    <div id="employeeLogin" class="hidden">
-        <h2>員工登入</h2>
-        <input type="text" id="employeeLoginId" placeholder="員工號">
-        <button onclick="loginEmployee()">登入</button>
-        <p id="loginError" style="color: red;"></p>
+        <!-- 主頁面 -->
+        <div id="mainPage" class="page active">
+            <div class="main-buttons">
+                <button onclick="showEmployeeLogin()">員工登入</button>
+                <button onclick="showAdminLogin()">管理者登入</button>
+            </div>
+        </div>
+
+        <!-- 員工頁面 -->
+        <div id="employeePage" class="page">
+            <div class="form-group">
+                <div id="employeeIdHint" class="employee-id-hint"></div>
+                <label for="employeeId">員工號</label>
+                <input type="text" id="employeeId" placeholder="請輸入員工號">
+            </div>
+            <div class="form-group">
+                <label for="balance">當前餘額</label>
+                <input type="text" id="balance" readonly value="">
+                <p id="lastDepositTime" class="last-time"></p>
+                <p id="lastWithdrawTime" class="last-time"></p>
+                <p id="specialMessage" class="special-message"></p>
+                <button class="validity-btn" onclick="showValidity()">顯示有效期限</button>
+                <p id="validityNote" class="validity-note"></p>
+                <button class="lottery-btn" onclick="performLottery()">抽獎</button>
+                <p id="lotteryChances" class="lottery-chances"></p>
+                <button class="export-btn" onclick="exportEmployeeTransactionsToExcel()">匯出個人交易記錄為 Excel</button>
+            </div>
+            <div class="form-group">
+                <label>目前日期</label>
+                <input type="text" id="currentDate" readonly>
+            </div>
+            <p id="error" class="error"></p>
+            <button onclick="logout()">登出</button>
+        </div>
+
+        <!-- 管理者頁面 -->
+        <div id="adminPage" class="page">
+            <div class="admin-section">
+                <h2>管理員專區</h2>
+                <div id="successMessage" class="success"></div>
+                <div class="form-group">
+                    <label for="adminQueryEmployeeId">查詢員工號</label>
+                    <input type="text" id="adminQueryEmployeeId" placeholder="請輸入員工號" oninput="syncEmployeeId()">
+                    <button class="query-btn" onclick="checkAdminBalance()">查詢餘額</button>
+                </div>
+                <div class="form-group">
+                    <label for="adminBalance">員工當前餘額</label>
+                    <input type="text" id="adminBalance" readonly value="">
+                    <p id="adminLotteryChances" class="lottery-chances"></p>
+                </div>
+                <div class="form-group">
+                    <label for="adminDeposit">存款金額</label>
+                    <input type="number" id="adminDeposit" min="0" placeholder="請輸入存款金額">
+                    <label for="depositNote">備註</label>
+                    <input type="text" id="depositNote" placeholder="輸入備註（可選）">
+                    <button onclick="handleDeposit()">存款</button>
+                </div>
+                <div class="form-group">
+                    <label for="adminWithdraw">提款金額</label>
+                    <input type="number" id="adminWithdraw" min="0" placeholder="請輸入提款金額">
+                    <button onclick="handleWithdraw()">提款</button>
+                </div>
+                <div class="form-group">
+                    <label for="setLotteryEmployeeId">設定抽獎次數的員工號</label>
+                    <input type="text" id="setLotteryEmployeeId" readonly>
+                    <label for="lotteryChancesInput">抽獎次數</label>
+                    <input type="number" id="lotteryChancesInput" min="0" placeholder="請輸入抽獎次數">
+                    <label for="lotteryNote">備註</label>
+                    <input type="text" id="lotteryNote" placeholder="輸入備註（可選）">
+                    <button onclick="setLotteryChances()">設定抽獎次數</button>
+                </div>
+                <button class="export-btn" onclick="exportTransactionsToExcel()">匯出交易記錄為 Excel</button>
+                <h3>所有交易記錄</h3>
+                <button class="toggle-btn" onclick="toggleTransactions()">展開交易記錄</button>
+                <table id="transactionTable">
+                    <thead>
+                        <tr>
+                            <th>員工號</th>
+                            <th>交易類型</th>
+                            <th>金額</th>
+                            <th>日期</th>
+                            <th>餘額</th>
+                            <th>管理員</th>
+                            <th>備註</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionBody"></tbody>
+                </table>
+            </div>
+            <button onclick="logout()">登出</button>
+        </div>
     </div>
 
-    <!-- 管理者登入 -->
-    <div id="adminLogin" class="hidden">
-        <h2>管理者登入</h2>
-        <input type="text" id="adminUsername" placeholder="使用者名稱">
-        <input type="password" id="adminPassword" placeholder="密碼">
-        <button onclick="loginAdmin()">登入</button>
-        <p id="adminError" style="color: red;"></p>
+    <!-- 員工登入模態框 -->
+    <div id="employeeLoginModal" class="modal">
+        <div class="modal-content">
+            <h3>員工登入</h3>
+            <div class="form-group">
+                <label for="employeeLoginId">員工號</label>
+                <input type="text" id="employeeLoginId" placeholder="請輸入員工號">
+            </div>
+            <button onclick="loginEmployee()">登入</button>
+            <button onclick="closeEmployeeLogin()">取消</button>
+        </div>
     </div>
 
-    <!-- 員工頁面 -->
-    <div id="employeePage" class="hidden">
-        <h2>員工頁面</h2>
-        <p>員工號: <input type="text" id="employeeId" readonly></p>
-        <p>餘額: <span id="balance">0</span></p>
-        <p>抽獎次數: <span id="lotteryChances">10</span></p>
-        <button onclick="handleDeposit()">存款</button>
-        <button onclick="performLottery()">抽獎</button>
-        <button onclick="exportTransactions()">匯出交易紀錄</button>
-        <button onclick="logoutEmployee()">登出</button>
-        <p id="employeeMessage" style="color: green;"></p>
+    <!-- 管理者登入模態框 -->
+    <div id="adminLoginModal" class="modal">
+        <div class="modal-content">
+            <h3>管理員登入</h3>
+            <div class="form-group">
+                <label for="adminUsername">管理員帳號</label>
+                <input type="text" id="adminUsername" placeholder="請輸入管理員帳號">
+            </div>
+            <div class="form-group">
+                <label for="adminPassword">管理員密碼</label>
+                <input type="password" id="adminPassword" placeholder="請輸入管理員密碼">
+            </div>
+            <button onclick="loginAdmin()">登入</button>
+            <button onclick="closeAdminLogin()">取消</button>
+        </div>
     </div>
 
-    <!-- 管理者頁面 -->
-    <div id="adminPage" class="hidden">
-        <h2>管理者頁面</h2>
-        <p>管理者: <span id="adminName"></span></p>
-        <input type="text" id="adminEmployeeId" placeholder="員工號">
-        <input type="number" id="adminAmount" placeholder="金額">
-        <select id="adminType">
-            <option value="存款">存款</option>
-            <option value="提款">提款</option>
-        </select>
-        <button onclick="adminTransaction()">執行交易</button>
-        <button onclick="deleteTransaction()">刪除交易</button>
-        <button onclick="updateAdminTable()">更新表格</button>
-        <button onclick="logoutAdmin()">登出</button>
-        <table id="adminTable">
-            <thead><tr><th>員工號</th><th>類型</th><th>金額</th><th>日期</th><th>餘額</th><th>管理員</th><th>備註</th></tr></thead>
-            <tbody></tbody>
-        </table>
-        <p id="adminMessage" style="color: green;"></p>
+    <!-- 抽獎結果模態框 -->
+    <div class="lottery-overlay" id="lotteryOverlay"></div>
+    <div class="lottery-result" id="lotteryResultModal">
+        <p id="lotteryResultText"></p>
+        <p id="lotteryExpiryText" class="validity-text"></p>
+        <button onclick="closeLotteryResult()">關閉</button>
     </div>
 
-    <script>
-        // Firebase 配置（請替換為您的實際配置）
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, push, remove, get } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+
         const firebaseConfig = {
-            apiKey: "您的apiKey",
-            authDomain: "您的authDomain",
+            apiKey: "AIzaSyDsBYR7O8Q5_SG0ofYGVvQzmx-anQwntvE",
+            authDomain: "sc-bank-6a55c.firebaseapp.com",
             databaseURL: "https://sc-bank-6a55c-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "您的projectId",
-            storageBucket: "您的storageBucket",
-            messagingSenderId: "您的messagingSenderId",
-            appId: "您的appId"
+            projectId: "sc-bank-6a55c",
+            storageBucket: "sc-bank-6a55c.firebasestorage.app",
+            messagingSenderId: "624717224751",
+            appId: "1:624717224751:web:10ab1911eb4ee230509fda",
+            measurementId: "G-QTJP7VPZ6H"
         };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
 
-        let isEmployeeLoggedIn = false, isAdminLoggedIn = false;
-        let currentEmployee = "", currentAdmin = "";
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
-        // 員工登入
-        function loginEmployee() {
-            const employeeId = document.getElementById('employeeLoginId').value.trim();
-            if (!employeeId) {
-                showError("員工號不可為空", "login");
-                return;
-            }
-            db.ref(`bankData/${employeeId}`).once('value').then(snapshot => {
-                if (!snapshot.exists()) {
-                    db.ref(`bankData/${employeeId}`).set({
-                        deposits: [],
-                        lotteryChances: 10,
-                        lotteryAdmin: "",
-                        lotteryNote: ""
-                    }).then(() => {
-                        isEmployeeLoggedIn = true;
-                        currentEmployee = employeeId;
-                        document.getElementById('employeeId').value = employeeId;
-                        closeEmployeeLogin();
-                        showPage('employeePage');
-                        checkBalance();
-                    });
-                } else {
-                    isEmployeeLoggedIn = true;
-                    currentEmployee = employeeId;
-                    document.getElementById('employeeId').value = employeeId;
-                    closeEmployeeLogin();
-                    showPage('employeePage');
-                    checkBalance();
-                }
-            }).catch(error => showError(error.message, "login"));
-        }
-
-        // 管理者登入
+        let bankData = {};
+        let transactions = [];
+        let transactionKeys = [];
         const ADMIN_CREDENTIALS = [
-            { username: "Emma", password: "123" },
-            { username: "Jennifer", password: "123" },
-            { username: "Ivan", password: "123" },
-            { username: "Celine", password: "123" }
+            { username: "Emma", password: "2312" },
+            { username: "Jennifer", password: "1433" },
+            { username: "Ivan", password: "2229" },
+            { username: "Celine", password: "2235" }
         ];
-        function loginAdmin() {
-            const username = document.getElementById('adminUsername').value.trim();
-            const password = document.getElementById('adminPassword').value.trim();
-            if (!username || !password) {
-                showError("使用者名稱和密碼不可為空", "admin");
-                return;
-            }
-            if (ADMIN_CREDENTIALS.some(cred => cred.username === username && cred.password === password)) {
-                isAdminLoggedIn = true;
-                currentAdmin = username;
-                document.getElementById('adminName').textContent = username;
-                closeAdminLogin();
-                showPage('adminPage');
-                updateAdminTable();
-            } else {
-                showError("登入失敗：無效的帳號或密碼", "admin");
-            }
-        }
+        const ADMIN_IDS = ["2802312", "2801433", "2802229", "2802235"];
+        const ALLOWED_EMPLOYEE_IDS = [
+            "10011985", "2801937", "2802155", "10014584", "2803219", 
+            "10014576", "10012088", "2802301", "2802862", "2802670", 
+            "10014567", "2803297", "10015181", "2802269", "10013395", 
+            "2804007", "10014339", "10014378", "2802663",
+            ...ADMIN_IDS
+        ];
+        let isAdminLoggedIn = false;
+        let currentAdmin = null;
+        let isEmployeeLoggedIn = false;
+        let currentEmployee = null;
+        let retryCount = 0;
+        const MAX_RETRIES = 3;
+        let isLotteryInProgress = false;
 
-        // 檢查餘額
-        function checkBalance() {
-            db.ref(`bankData/${currentEmployee}`).once('value').then(snapshot => {
-                const data = snapshot.val() || { deposits: [] };
-                const balance = data.deposits.reduce((sum, deposit) => sum + deposit.amount, 0);
-                document.getElementById('balance').textContent = balance;
-                document.getElementById('lotteryChances').textContent = data.lotteryChances || 10;
+        // 初始化資料庫（手動觸發）
+        function initializeDatabase() {
+            set(ref(db, 'bankData'), {}).then(() => {
+                console.log("BankData 已清空");
+            }).catch((error) => {
+                console.error("清空 bankData 失敗:", error.message);
+                showError("初始化資料庫失敗，請聯繫管理員");
+            });
+
+            remove(ref(db, 'transactions')).then(() => {
+                console.log("Transactions 已清空");
+            }).catch((error) => {
+                console.error("清空 transactions 失敗:", error.message);
+                showError("初始化資料庫失敗，請聯繫管理員");
+            });
+
+            set(ref(db, 'accessKey'), "scbank2025").then(() => {
+                console.log("AccessKey 已設置");
+            }).catch((error) => {
+                console.error("設置 accessKey 失敗:", error.message);
             });
         }
 
-        // 存款
-        function handleDeposit() {
-            const amount = prompt("請輸入存款金額:");
-            if (amount && !isNaN(amount) && amount > 0) {
-                const deposit = {
-                    amount: parseFloat(amount),
-                    depositDate: new Date().toLocaleString()
-                };
-                db.ref(`bankData/${currentEmployee}/deposits`).push(deposit).then(() => {
-                    checkBalance();
-                    showMessage("存款成功", "employee");
-                });
-            } else {
-                showError("請輸入有效的金額", "employee");
-            }
-        }
-
-        // 抽獎
-        function performLottery() {
-            db.ref(`bankData/${currentEmployee}/lotteryChances`).once('value').then(snapshot => {
-                let chances = snapshot.val() || 0;
-                if (chances > 0) {
-                    chances -= 1;
-                    db.ref(`bankData/${currentEmployee}/lotteryChances`).set(chances).then(() => {
-                        checkBalance();
-                        showMessage("抽獎成功，剩餘次數: " + chances, "employee");
-                        // 模擬抽獎結果
-                        const prize = Math.random() > 0.5 ? "獎金 100" : "未中獎";
-                        alert(prize);
-                    });
-                } else {
-                    showError("抽獎次數不足", "employee");
-                }
-            });
-        }
-
-        // 匯出交易紀錄
-        function exportTransactions() {
-            db.ref('transactions').orderByChild('employeeId').equalTo(currentEmployee).once('value').then(snapshot => {
-                const transactions = snapshot.val() || {};
-                const csv = convertToCSV(transactions);
-                const blob = new Blob([csv], { type: 'text/csv' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'transactions.csv';
-                a.click();
-            });
-        }
-
-        // 管理者執行交易
-        function adminTransaction() {
-            const employeeId = document.getElementById('adminEmployeeId').value.trim();
-            const amount = parseFloat(document.getElementById('adminAmount').value);
-            const type = document.getElementById('adminType').value;
-            if (employeeId && !isNaN(amount) && amount >= 0) {
-                db.ref(`bankData/${employeeId}`).once('value').then(snapshot => {
-                    const data = snapshot.val() || { deposits: [] };
-                    const balance = data.deposits.reduce((sum, deposit) => sum + deposit.amount, 0);
-                    const newBalance = type === "存款" ? balance + amount : balance - amount;
-                    if (newBalance >= 0) {
-                        const transaction = {
-                            employeeId: employeeId,
-                            type: type,
-                            amount: amount,
-                            date: new Date().toLocaleString(),
-                            balance: newBalance,
-                            admin: currentAdmin
-                        };
-                        db.ref('transactions').push(transaction).then(() => {
-                            showMessage("交易成功", "admin");
-                            updateAdminTable();
-                        });
-                    } else {
-                        showError("餘額不足", "admin");
+        // 清空交易記錄並設定抽獎次數
+        async function resetTransactionsAndLottery() {
+            try {
+                await remove(ref(db, 'transactions'));
+                ALLOWED_EMPLOYEE_IDS.forEach(employeeId => {
+                    if (!bankData[employeeId]) {
+                        bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null, lotteryNote: null };
                     }
+                    bankData[employeeId].lotteryChances = 10;
                 });
-            } else {
-                showError("請輸入有效的員工號和金額", "admin");
+                await saveData();
+                showSuccessMessage("交易記錄已清空，所有員工抽獎次數已設定為 10 次！");
+                if (isAdminLoggedIn) checkAdminBalance();
+                if (isEmployeeLoggedIn) checkBalance();
+            } catch (error) {
+                console.error("Error resetting data:", error.message);
+                showError(`重置失敗: ${error.message}`);
             }
         }
 
-        // 刪除交易
-        function deleteTransaction() {
-            const transactionId = prompt("請輸入要刪除的交易ID:");
-            if (transactionId) {
-                db.ref(`transactions/${transactionId}`).remove().then(() => {
-                    showMessage("交易刪除成功", "admin");
-                    updateAdminTable();
-                }).catch(error => showError(error.message, "admin"));
-            }
-        }
+        // 頁面載入時執行重置
+        window.addEventListener('load', resetTransactionsAndLottery);
 
-        // 更新管理者表格
-        function updateAdminTable() {
-            db.ref('transactions').once('value').then(snapshot => {
-                const transactions = snapshot.val() || {};
-                const tbody = document.querySelector('#adminTable tbody');
-                tbody.innerHTML = '';
-                for (let id in transactions) {
-                    const t = transactions[id];
-                    const row = tbody.insertRow();
-                    row.innerHTML = `<td>${t.employeeId}</td><td>${t.type}</td><td>${t.amount}</td><td>${t.date}</td><td>${t.balance}</td><td>${t.admin}</td><td>${t.note || ''}</td>`;
+        function setupListeners() {
+            try {
+                get(ref(db, 'accessKey')).then((snapshot) => {
+                    const accessKey = snapshot.val();
+                    if (accessKey !== "scbank2025") {
+                        showError("資料庫訪問密碼錯誤");
+                        return;
+                    }
+
+                    onValue(ref(db, 'bankData'), (snapshot) => {
+                        bankData = snapshot.val() || {};
+                        if (isEmployeeLoggedIn) checkBalance();
+                        if (isAdminLoggedIn) checkAdminBalance();
+                        updateLotteryChances();
+                        retryCount = 0;
+                    }, (error) => {
+                        console.error("Error loading bankData:", error.message);
+                        retryCount++;
+                        if (retryCount < MAX_RETRIES) {
+                            showError(`資料庫錯誤 (bankData): ${error.message}，${MAX_RETRIES - retryCount} 次後停止重試`);
+                            setTimeout(setupListeners, 5000);
+                        } else {
+                            showError(`資料庫連線失敗，已達最大重試次數 (${MAX_RETRIES})，請聯繫管理員`);
+                        }
+                    });
+
+                    onValue(ref(db, 'transactions'), (snapshot) => {
+                        const data = snapshot.val();
+                        transactions = data ? Object.values(data) : [];
+                        transactionKeys = data ? Object.keys(data) : [];
+                        updateAdminTable();
+                        if (isEmployeeLoggedIn) checkBalance();
+                        if (isAdminLoggedIn) checkAdminBalance();
+                        retryCount = 0;
+                    }, (error) => {
+                        console.error("Error loading transactions:", error.message);
+                        retryCount++;
+                        if (retryCount < MAX_RETRIES) {
+                            showError(`資料庫錯誤 (transactions): ${error.message}，${MAX_RETRIES - retryCount} 次後停止重試`);
+                            setTimeout(setupListeners, 5000);
+                        } else {
+                            showError(`資料庫連線失敗，已達最大重試次數 (${MAX_RETRIES})，請聯繫管理員`);
+                        }
+                    });
+                }).catch((error) => {
+                    showError("無法驗證資料庫訪問密碼，請檢查網路連線");
+                    console.error("Error checking accessKey:", error.message);
+                });
+            } catch (e) {
+                console.error("Setup listeners failed:", e.message);
+                retryCount++;
+                if (retryCount < MAX_RETRIES) {
+                    showError(`初始化失敗: ${e.message}，${MAX_RETRIES - retryCount} 次後停止重試`);
+                    setTimeout(setupListeners, 5000);
+                } else {
+                    showError(`初始化失敗，已達最大重試次數 (${MAX_RETRIES})`);
                 }
-            });
+            }
         }
 
-        // 輔助函數
+        setupListeners();
+
+        async function saveData() {
+            try {
+                await set(ref(db, 'bankData'), bankData);
+                console.log("Data successfully saved to bankData");
+            } catch (error) {
+                console.error("Error saving data:", error.message);
+                if (error.code === 'PERMISSION_DENIED') {
+                    showError("權限拒絕，請聯繫管理員更新資料庫規則！");
+                } else {
+                    showError(`儲存失敗: ${error.message}`);
+                }
+                throw error;
+            }
+        }
+
+        function updateDate() {
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+            document.getElementById('currentDate').value = formattedDate;
+        }
+
+        function showError(message) {
+            const error = document.getElementById('error');
+            error.style.display = 'block';
+            error.innerHTML = `${message} <button onclick="this.parentElement.style.display='none'">X</button>`;
+            setTimeout(() => error.style.display = 'none', 7000);
+        }
+
+        function showSuccessMessage(message) {
+            const successMsg = document.getElementById('successMessage');
+            successMsg.style.display = 'block';
+            successMsg.innerHTML = `${message} <button onclick="this.parentElement.style.display='none'">X</button>`;
+            setTimeout(() => successMsg.style.display = 'none', 5000);
+        }
+
+        function showSpecialMessage(message) {
+            const specialMsg = document.getElementById('specialMessage');
+            specialMsg.style.display = 'block';
+            specialMsg.innerHTML = `${message} <button onclick="this.parentElement.style.display='none'">X</button>`;
+            setTimeout(() => specialMsg.style.display = 'none', 5000);
+        }
+
         function showPage(pageId) {
-            document.querySelectorAll('div[id$="Page"]').forEach(div => div.classList.add('hidden'));
-            document.getElementById(pageId).classList.remove('hidden');
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        function showEmployeeLogin() {
+            document.getElementById('employeeLoginModal').style.display = 'flex';
+            document.getElementById('employeeLoginId').value = '';
         }
 
         function closeEmployeeLogin() {
-            document.getElementById('employeeLogin').classList.add('hidden');
+            document.getElementById('employeeLoginModal').style.display = 'none';
+        }
+
+        function loginEmployee() {
+            const employeeId = document.getElementById('employeeLoginId').value.trim();
+            if (validateEmployeeId(employeeId)) {
+                isEmployeeLoggedIn = true;
+                currentEmployee = employeeId;
+                document.getElementById('employeeId').value = employeeId;
+                closeEmployeeLogin();
+                showPage('employeePage');
+                checkBalance();
+            }
+        }
+
+        function showAdminLogin() {
+            document.getElementById('adminLoginModal').style.display = 'flex';
+            document.getElementById('adminUsername').value = '';
+            document.getElementById('adminPassword').value = '';
         }
 
         function closeAdminLogin() {
-            document.getElementById('adminLogin').classList.add('hidden');
+            document.getElementById('adminLoginModal').style.display = 'none';
         }
 
-        function showError(message, type) {
-            document.getElementById(`${type}Error`).textContent = message;
+        function loginAdmin() {
+            const username = document.getElementById('adminUsername').value.trim();
+            const password = document.getElementById('adminPassword').value.trim();
+            const isValidAdmin = ADMIN_CREDENTIALS.some(cred => cred.username === username && cred.password === password);
+            if (isValidAdmin) {
+                isAdminLoggedIn = true;
+                currentAdmin = username;
+                closeAdminLogin();
+                showPage('adminPage');
+                document.getElementById('transactionTable').style.display = 'none';
+                updateAdminTable();
+            } else {
+                showError("管理員帳號或密碼錯誤");
+            }
         }
 
-        function showMessage(message, type) {
-            document.getElementById(`${type}Message`).textContent = message;
-            setTimeout(() => document.getElementById(`${type}Message`).textContent = '', 3000);
-        }
-
-        function convertToCSV(objArray) {
-            const array = Object.values(objArray);
-            const headers = Object.keys(array[0] || {});
-            const csv = [
-                headers.join(','),
-                ...array.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
-            ].join('\n');
-            return csv;
-        }
-
-        function logoutEmployee() {
+        function logout() {
             isEmployeeLoggedIn = false;
-            currentEmployee = "";
-            showPage('employeeLogin');
-        }
-
-        function logoutAdmin() {
             isAdminLoggedIn = false;
-            currentAdmin = "";
-            showPage('adminLogin');
+            currentEmployee = null;
+            currentAdmin = null;
+            document.getElementById('employeeId').value = '';
+            document.getElementById('adminQueryEmployeeId').value = '';
+            document.getElementById('setLotteryEmployeeId').value = '';
+            document.getElementById('balance').value = '';
+            document.getElementById('adminBalance').value = '';
+            document.getElementById('lastDepositTime').textContent = '';
+            document.getElementById('lastWithdrawTime').textContent = '';
+            document.getElementById('lotteryChances').textContent = '';
+            document.getElementById('adminLotteryChances').textContent = '';
+            showPage('mainPage');
         }
 
-        // 初始顯示登入頁面
-        showPage('employeeLogin');
+        function validateEmployeeId(employeeId) {
+            const hint = document.getElementById('employeeIdHint');
+            const regex = /^\d{7,8}$/;
+            if (!employeeId || !regex.test(employeeId)) {
+                showError("員工號必須為7或8位數字");
+                return false;
+            }
+            if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
+                showError("查無此員工");
+                return false;
+            }
+            if (ADMIN_IDS.includes(employeeId)) {
+                hint.textContent = "你是管理者，沒錢的";
+                hint.style.display = 'block';
+                setTimeout(() => hint.textContent = '', 3000);
+                return false;
+            }
+            hint.style.display = 'none';
+            return true;
+        }
+
+        async function initializeEmployee(employeeId) {
+            if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
+                showError("查無此員工");
+                return false;
+            }
+            if (!validateEmployeeId(employeeId)) {
+                if (isEmployeeLoggedIn) {
+                    document.getElementById('balance').value = '';
+                    document.getElementById('lastDepositTime').textContent = '';
+                    document.getElementById('lastWithdrawTime').textContent = '';
+                    document.getElementById('lotteryChances').textContent = '';
+                } else if (isAdminLoggedIn) {
+                    document.getElementById('adminBalance').value = '';
+                    document.getElementById('adminLotteryChances').textContent = '';
+                }
+                return false;
+            }
+            if (!bankData[employeeId]) {
+                bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null, lotteryNote: null };
+                try {
+                    await saveData();
+                } catch (error) {
+                    if (error.code === 'PERMISSION_DENIED') {
+                        showError("權限拒絕，無法初始化新員工資料，請聯繫管理員！");
+                    } else {
+                        showError(`初始化失敗: ${error.message}`);
+                    }
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function calculateBalance(employeeId) {
+            const now = new Date();
+            let totalBalance = 0;
+            const deposits = bankData[employeeId]?.deposits || [];
+            let updatedDeposits = deposits.map(deposit => {
+                const expiryDate = new Date(deposit.expiryDate);
+                if (now > expiryDate) {
+                    if (deposit.amount > 0) {
+                        deposit.amount = 0;
+                    }
+                }
+                totalBalance += deposit.amount;
+                return deposit;
+            }).filter(deposit => deposit.amount > 0);
+            bankData[employeeId].deposits = updatedDeposits;
+            return totalBalance;
+        }
+
+        async function checkBalance() {
+            const employeeId = document.getElementById('employeeId').value.trim();
+            if (await initializeEmployee(employeeId)) {
+                const balance = calculateBalance(employeeId);
+                document.getElementById('balance').value = balance;
+
+                let lastDeposit = null;
+                let lastWithdraw = null;
+                for (let i = transactions.length - 1; i >= 0; i--) {
+                    if (transactions[i].employeeId === employeeId) {
+                        if (['存款', '抽獎獎金'].includes(transactions[i].type) && !lastDeposit) {
+                            lastDeposit = transactions[i].date;
+                        } else if (transactions[i].type === '提款' && !lastWithdraw) {
+                            lastWithdraw = transactions[i].date;
+                        }
+                        if (lastDeposit && lastWithdraw) break;
+                    }
+                }
+
+                document.getElementById('lastDepositTime').textContent = lastDeposit ? `最後存款/抽獎時間：${lastDeposit}` : '最後存款/抽獎時間：無記錄';
+                document.getElementById('lastWithdrawTime').textContent = lastWithdraw ? `最後提款時間：${lastWithdraw}` : '最後提款時間：無記錄';
+                updateLotteryChances();
+                await saveData();
+            }
+        }
+
+        async function checkAdminBalance() {
+            const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
+            if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
+                showError("查無此員工");
+                document.getElementById('adminBalance').value = '';
+                document.getElementById('adminLotteryChances').textContent = '';
+                return;
+            }
+            if (await initializeEmployee(employeeId)) {
+                const balance = calculateBalance(employeeId);
+                document.getElementById('adminBalance').value = balance;
+                const chances = bankData[employeeId]?.lotteryChances || 0;
+                document.getElementById('adminLotteryChances').textContent = `剩餘抽獎次數：${chances}`;
+                await saveData();
+            }
+        }
+
+        function syncEmployeeId() {
+            const adminQueryEmployeeId = document.getElementById('adminQueryEmployeeId').value.trim();
+            document.getElementById('setLotteryEmployeeId').value = adminQueryEmployeeId;
+        }
+
+        async function handleDeposit() {
+            if (!isAdminLoggedIn) {
+                showError("請先以管理員身分登入");
+                return;
+            }
+            const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
+            const amount = parseFloat(document.getElementById('adminDeposit').value);
+            const note = document.getElementById('depositNote').value.trim();
+            if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
+                showError("查無此員工");
+                return;
+            }
+            if (!await initializeEmployee(employeeId)) return;
+
+            if (isNaN(amount) || amount <= 0) {
+                showError("請輸入有效的存款金額");
+                return;
+            }
+
+            try {
+                const depositDate = new Date();
+                const expiryDate = new Date(depositDate);
+                expiryDate.setDate(depositDate.getDate() + 15);
+                const deposit = {
+                    amount: amount,
+                    depositDate: depositDate.toLocaleString('zh-TW'),
+                    expiryDate: expiryDate.toISOString()
+                };
+                if (!bankData[employeeId].deposits) {
+                    bankData[employeeId].deposits = [];
+                }
+                bankData[employeeId].deposits.push(deposit);
+                await saveData();
+                await push(ref(db, 'transactions'), {
+                    employeeId,
+                    type: '存款',
+                    amount,
+                    date: deposit.depositDate,
+                    balance: calculateBalance(employeeId),
+                    admin: currentAdmin,
+                    note: note || '無備註'
+                });
+                document.getElementById('adminDeposit').value = '';
+                document.getElementById('depositNote').value = '';
+                showSuccessMessage("存款成功！");
+                await checkAdminBalance();
+            } catch (error) {
+                console.error("Error during deposit:", error.message);
+                if (error.code === 'PERMISSION_DENIED') {
+                    showError("權限拒絕，請聯繫管理員更新資料庫規則！");
+                } else {
+                    showError(`存款失敗: ${error.message}`);
+                }
+                bankData[employeeId].deposits = bankData[employeeId].deposits.filter(d => d.depositDate !== deposit.depositDate);
+                await saveData();
+                await checkAdminBalance();
+            }
+        }
+
+        async function handleWithdraw() {
+            if (!isAdminLoggedIn) {
+                showError("請先以管理員身分登入");
+                return;
+            }
+            const employeeId = document.getElementById('adminQueryEmployeeId').value.trim();
+            let amount = parseFloat(document.getElementById('adminWithdraw').value);
+            if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
+                showError("查無此員工");
+                return;
+            }
+            if (!await initializeEmployee(employeeId)) return;
+
+            if (isNaN(amount) || amount <= 0) {
+                showError("請輸入有效的提款金額");
+                return;
+            }
+
+            const balance = calculateBalance(employeeId);
+            if (amount > balance) {
+                showError("餘額不足");
+                return;
+            }
+
+            try {
+                let remainingAmount = amount;
+                let deposits = [...bankData[employeeId].deposits].sort((a, b) => new Date(a.depositDate) - new Date(b.depositDate));
+                let updatedDeposits = [];
+                for (let deposit of deposits) {
+                    if (remainingAmount <= 0) {
+                        updatedDeposits.push(deposit);
+                        continue;
+                    }
+                    const depositAmount = deposit.amount;
+                    if (depositAmount >= remainingAmount) {
+                        deposit.amount -= remainingAmount;
+                        remainingAmount = 0;
+                        if (deposit.amount > 0) updatedDeposits.push(deposit);
+                    } else {
+                        remainingAmount -= depositAmount;
+                        deposit.amount = 0;
+                    }
+                }
+                bankData[employeeId].deposits = updatedDeposits.filter(d => d.amount > 0);
+                await saveData();
+                await push(ref(db, 'transactions'), {
+                    employeeId,
+                    type: '提款',
+                    amount,
+                    date: new Date().toLocaleString('zh-TW'),
+                    balance: calculateBalance(employeeId),
+                    admin: currentAdmin
+                });
+                document.getElementById('adminWithdraw').value = '';
+                showSuccessMessage("提款成功！");
+                await checkAdminBalance();
+            } catch (error) {
+                console.error("Error during withdraw:", error.message);
+                if (error.code === 'PERMISSION_DENIED') {
+                    showError("權限拒絕，請聯繫管理員更新資料庫規則！");
+                } else {
+                    showError(`提款失敗: ${error.message}`);
+                }
+                await checkAdminBalance();
+            }
+        }
+
+        function showValidity() {
+            const employeeId = document.getElementById('employeeId').value.trim();
+            if (!validateEmployeeId(employeeId) || !bankData[employeeId]?.deposits?.length) {
+                document.getElementById('validityNote').textContent = '無有效存款或抽獎金額';
+                return;
+            }
+            const earliestDeposit = [...bankData[employeeId].deposits].sort((a, b) => new Date(a.depositDate) - new Date(b.depositDate))[0];
+            const expiryDate = new Date(earliestDeposit.expiryDate).toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+            document.getElementById('validityNote').textContent = `最早存款/抽獎金額有效期至：${expiryDate}`;
+            document.getElementById('validityNote').style.display = 'block';
+        }
+
+        async function deleteTransaction(index) {
+            if (!isAdminLoggedIn) {
+                showError("請先以管理員身分登入");
+                return;
+            }
+            if (!confirm("確定要刪除這筆交易記錄嗎？")) return;
+            if (index < 0 || index >= transactions.length || !transactionKeys[index]) {
+                showError("無法刪除，交易記錄無效");
+                return;
+            }
+
+            const transaction = transactions[index];
+            const { employeeId, type, amount } = transaction;
+            const keyToDelete = transactionKeys[index];
+
+            try {
+                if (type === '存款') {
+                    bankData[employeeId].deposits = bankData[employeeId].deposits.filter(d => d.depositDate !== transaction.date);
+                } else if (type === '提款') {
+                    let remainingAmount = amount;
+                    let newDeposit = {
+                        amount: amount,
+                        depositDate: new Date().toLocaleString('zh-TW'),
+                        expiryDate: new Date(new Date().setDate(new Date().getDate() + 15)).toISOString()
+                    };
+                    bankData[employeeId].deposits.push(newDeposit);
+                } else if (type === '抽獎獎金') {
+                    let remainingAmount = amount;
+                    let deposits = [...bankData[employeeId].deposits].sort((a, b) => new Date(a.depositDate) - new Date(b.depositDate));
+                    let updatedDeposits = [];
+                    for (let deposit of deposits) {
+                        if (remainingAmount <= 0) {
+                            updatedDeposits.push(deposit);
+                            continue;
+                        }
+                        const depositAmount = deposit.amount;
+                        if (depositAmount >= remainingAmount) {
+                            deposit.amount -= remainingAmount;
+                            remainingAmount = 0;
+                            if (deposit.amount > 0) updatedDeposits.push(deposit);
+                        } else {
+                            remainingAmount -= depositAmount;
+                            deposit.amount = 0;
+                        }
+                    }
+                    bankData[employeeId].deposits = updatedDeposits.filter(d => d.amount > 0);
+                }
+
+                await remove(ref(db, `transactions/${keyToDelete}`));
+                await saveData();
+                const currentEmployeeId = document.getElementById('adminQueryEmployeeId').value.trim();
+                if (currentEmployeeId === employeeId) await checkAdminBalance();
+                showSuccessMessage("交易記錄刪除成功！");
+            } catch (error) {
+                console.error("Error deleting transaction:", error.message);
+                if (error.code === 'PERMISSION_DENIED') {
+                    showError("權限拒絕，請聯繫管理員更新資料庫規則！");
+                } else {
+                    showError(`刪除失敗: ${error.message}`);
+                }
+                await checkAdminBalance();
+            }
+        }
+
+        async function setLotteryChances() {
+            if (!isAdminLoggedIn) {
+                showError("請先以管理員身份登入");
+                return;
+            }
+            const employeeId = document.getElementById('setLotteryEmployeeId').value.trim();
+            const chances = parseInt(document.getElementById('lotteryChancesInput').value);
+            const note = document.getElementById('lotteryNote').value.trim();
+            
+            if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
+                showError("查無此員工");
+                return;
+            }
+            if (!validateEmployeeId(employeeId)) return;
+            if (isNaN(chances) || chances < 0) {
+                showError("請輸入有效的抽獎次數");
+                return;
+            }
+
+            try {
+                if (!bankData[employeeId]) {
+                    bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null, lotteryNote: null };
+                }
+                const previousChances = bankData[employeeId].lotteryChances || 0;
+                bankData[employeeId].lotteryChances = chances;
+                bankData[employeeId].lotteryAdmin = currentAdmin;
+                bankData[employeeId].lotteryNote = note || '無備註'; // 儲存備註
+                console.log(`Setting lottery chances for ${employeeId} to ${chances} with note: ${bankData[employeeId].lotteryNote}`);
+                await saveData();
+                
+                await push(ref(db, 'transactions'), {
+                    employeeId,
+                    type: '設定抽獎次數',
+                    amount: chances,
+                    date: new Date().toLocaleString('zh-TW'),
+                    balance: calculateBalance(employeeId),
+                    admin: currentAdmin,
+                    note: note || '無備註'
+                });
+
+                const snapshot = await get(ref(db, `bankData/${employeeId}`));
+                const savedData = snapshot.val();
+                if (savedData && savedData.lotteryChances === chances) {
+                    console.log(`Successfully verified lottery chances: ${chances}`);
+                    document.getElementById('setLotteryEmployeeId').value = '';
+                    document.getElementById('lotteryChancesInput').value = '';
+                    document.getElementById('lotteryNote').value = '';
+                    showSuccessMessage(`已為員工 ${employeeId} 設定 ${chances} 次抽獎機會！`);
+                    const currentEmployeeId = document.getElementById('adminQueryEmployeeId').value.trim();
+                    if (currentEmployeeId === employeeId) checkAdminBalance();
+                } else {
+                    throw new Error("抽獎次數保存失敗，資料庫未更新");
+                }
+            } catch (error) {
+                console.error("Error setting lottery chances:", error.message);
+                if (error.code === 'PERMISSION_DENIED') {
+                    showError("權限操作失敗，請聯繫管理員更新資料庫規則！");
+                } else {
+                    showError(`設定失敗: ${error.message}`);
+                }
+                if (bankData[employeeId]) {
+                    bankData[employeeId].lotteryChances = previousChances;
+                }
+            }
+        }
+
+        function updateLotteryChances() {
+            const employeeId = document.getElementById('employeeId').value.trim();
+            if (validateEmployeeId(employeeId)) {
+                const chances = bankData[employeeId]?.lotteryChances || 0;
+                document.getElementById('lotteryChances').innerHTML = `剩餘抽獎次數：${chances}<br><small>（次數不足時，請努力獲得~加油!）</small>`;
+            } else {
+                document.getElementById('lotteryChances').textContent = '';
+            }
+        }
+
+        function updateAdminTable() {
+            const tbody = document.getElementById('transactionBody');
+            tbody.innerHTML = '';
+            transactions.forEach((t, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td data-label="員工號">${t.employeeId}</td>
+                    <td data-label="交易類型">${t.type}</td>
+                    <td data-label="金額">${t.amount}</td>
+                    <td data-label="日期">${t.date}</td>
+                    <td data-label="餘額">${t.balance}</td>
+                    <td data-label="管理員">${t.admin || '未記錄'}</td>
+                    <td data-label="備註">${t.note || '無備註'}</td>
+                    <td data-label="操作"><button class="delete-btn" onclick="deleteTransaction(${index})">刪除</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function toggleTransactions() {
+            const table = document.getElementById('transactionTable');
+            const button = document.querySelector('.toggle-btn');
+            if (table.style.display === 'none' || table.style.display === '') {
+                updateAdminTable();
+                table.style.display = 'table';
+                button.textContent = '收合交易記錄';
+            } else {
+                table.style.display = 'none';
+                button.textContent = '展開交易記錄';
+            }
+        }
+
+        async function performLottery() {
+            if (isLotteryInProgress) {
+                showError("抽獎正在處理中，請稍後再試！");
+                return;
+            }
+
+            isLotteryInProgress = true;
+
+            const employeeId = document.getElementById('employeeId').value.trim();
+            if (!await initializeEmployee(employeeId)) {
+                isLotteryInProgress = false;
+                return;
+            }
+
+            if (!bankData[employeeId]) {
+                bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null, lotteryNote: null };
+            }
+
+            const chances = bankData[employeeId].lotteryChances || 0;
+            if (chances <= 0) {
+                showError("您的抽獎次數不足，請努力獲得~加油!");
+                isLotteryInProgress = false;
+                return;
+            }
+
+            const lotteryAdmin = bankData[employeeId].lotteryAdmin || '未記錄';
+            const lotteryNote = bankData[employeeId].lotteryNote || '無備註'; // 使用儲存的備註
+            const prizes = [200, 150, 100, 50];
+            const weights = [10, 20, 30, 40];
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            const randomValue = Math.random() * totalWeight;
+            let cumulativeWeight = 0;
+            let prize = 0;
+
+            for (let i = 0; i < weights.length; i++) {
+                cumulativeWeight += weights[i];
+                if (randomValue <= cumulativeWeight) {
+                    prize = prizes[i];
+                    break;
+                }
+            }
+
+            const depositDate = new Date();
+            const expiryDate = new Date(depositDate);
+            expiryDate.setDate(depositDate.getDate() + 15); // 設置 15 天有效期
+            const formattedExpiryDate = expiryDate.toLocaleDateString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+
+            document.getElementById('lotteryOverlay').style.display = 'block';
+            document.getElementById('lotteryResultModal').style.display = 'block';
+            document.getElementById('lotteryResultText').innerHTML = `恭喜您抽中 ${prize} 元！`;
+            document.getElementById('lotteryExpiryText').innerHTML = `有效期限至：${formattedExpiryDate}`;
+
+            try {
+                bankData[employeeId].deposits.push({
+                    amount: prize,
+                    depositDate: depositDate.toLocaleString('zh-TW'),
+                    expiryDate: expiryDate.toISOString()
+                });
+                bankData[employeeId].lotteryChances = chances - 1;
+                const balance = calculateBalance(employeeId);
+                await push(ref(db, 'transactions'), {
+                    employeeId,
+                    type: '抽獎獎金',
+                    amount: prize,
+                    date: new Date().toLocaleString('zh-TW'),
+                    balance: balance,
+                    admin: lotteryAdmin,
+                    note: lotteryNote // 使用與設定抽獎次數相同的備註
+                });
+                await saveData();
+                await checkBalance();
+            } catch (error) {
+                console.error("Error during lottery:", error.message);
+                if (error.code === 'PERMISSION_DENIED') {
+                    showError("權限拒絕，請聯繫管理員更新資料庫規則！");
+                } else {
+                    showError(`抽獎獎金儲存失敗: ${error.message}`);
+                }
+                bankData[employeeId].lotteryChances = chances;
+                await checkBalance();
+            } finally {
+                isLotteryInProgress = false;
+            }
+        }
+
+        function closeLotteryResult() {
+            document.getElementById('lotteryOverlay').style.display = 'none';
+            document.getElementById('lotteryResultModal').style.display = 'none';
+        }
+
+        function exportTransactionsToExcel() {
+            const wb = XLSX.utils.book_new();
+            const wsData = transactions.map(t => ({
+                '員工號': t.employeeId,
+                '交易類型': t.type,
+                '金額': t.amount,
+                '日期': t.date,
+                '餘額': t.balance,
+                '管理員': t.admin || '未記錄',
+                '備註': t.note || '無備註'
+            }));
+            const ws = XLSX.utils.json_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, "交易記錄");
+            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `all_transactions_${new Date().toISOString().split('T')[0]}.xlsx`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function exportEmployeeTransactionsToExcel() {
+            const employeeId = document.getElementById('employeeId').value.trim();
+            if (!validateEmployeeId(employeeId)) return;
+
+            const employeeTransactions = transactions.filter(t => t.employeeId === employeeId);
+            if (employeeTransactions.length === 0) {
+                showError("無個人交易記錄可匯出");
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            const wsData = employeeTransactions.map(t => ({
+                '員工號': t.employeeId,
+                '交易類型': t.type,
+                '金額': t.amount,
+                '日期': t.date,
+                '餘額': t.balance,
+                '管理員': t.admin || '未記錄',
+                '備註': t.note || '無備註'
+            }));
+            const ws = XLSX.utils.json_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, `交易記錄_${employeeId}`);
+            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transactions_${employeeId}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showSuccessMessage("個人交易記錄匯出成功！");
+        }
+
+        updateDate();
+        updateAdminTable();
+
+        window.showEmployeeLogin = showEmployeeLogin;
+        window.closeEmployeeLogin = closeEmployeeLogin;
+        window.loginEmployee = loginEmployee;
+        window.showAdminLogin = showAdminLogin;
+        window.closeAdminLogin = closeAdminLogin;
+        window.loginAdmin = loginAdmin;
+        window.logout = logout;
+        window.checkBalance = checkBalance;
+        window.checkAdminBalance = checkAdminBalance;
+        window.handleDeposit = handleDeposit;
+        window.handleWithdraw = handleWithdraw;
+        window.showValidity = showValidity;
+        window.deleteTransaction = deleteTransaction;
+        window.setLotteryChances = setLotteryChances;
+        window.performLottery = performLottery;
+        window.closeLotteryResult = closeLotteryResult;
+        window.exportTransactionsToExcel = exportTransactionsToExcel;
+        window.exportEmployeeTransactionsToExcel = exportEmployeeTransactionsToExcel;
+        window.syncEmployeeId = syncEmployeeId;
+        window.toggleTransactions = toggleTransactions;
     </script>
 </body>
 </html>
