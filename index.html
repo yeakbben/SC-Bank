@@ -103,6 +103,19 @@
             outline: none;
             box-shadow: 0 0 8px #f4c2c2;
         }
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #f4c2c2;
+            border-radius: 8px;
+            font-size: 1rem;
+            background-color: #fff5f7;
+            transition: box-shadow 0.3s ease;
+        }
+        select:focus {
+            outline: none;
+            box-shadow: 0 0 8px #f4c2c2;
+        }
         button {
             padding: 12px 20px;
             background: linear-gradient(45deg, #f4c2c2, #d81b60);
@@ -351,7 +364,7 @@
             .container {
                 padding: 10px;
             }
-            input[type="text"], input[type="number"], input[type="password"], input[type="date"] {
+            input[type="text"], input[type="number"], input[type="password"], input[type="date"], select {
                 padding: 8px;
                 font-size: 0.9rem;
             }
@@ -435,6 +448,11 @@
                     <input type="text" id="setLotteryEmployeeId" readonly>
                     <label for="lotteryChancesInput">抽獎次數</label>
                     <input type="number" id="lotteryChancesInput" min="0" placeholder="請輸入抽獎次數">
+                    <label for="lotteryMode">模式</label>
+                    <select id="lotteryMode">
+                        <option value="add">疊加</option>
+                        <option value="overwrite">覆蓋</option>
+                    </select>
                     <label for="lotteryNote">備註</label>
                     <input type="text" id="lotteryNote" placeholder="輸入備註（可選）">
                     <button onclick="setLotteryChances()">設定抽獎次數</button>
@@ -573,7 +591,7 @@
                 const updates = {};
                 ALLOWED_EMPLOYEE_IDS.forEach(employeeId => {
                     updates[`bankData/${employeeId}/deposits`] = [];
-                    updates[`bankData/${employeeId}/lotteryChances`] = 0; // 將抽獎次數設為 0
+                    updates[`bankData/${employeeId}/lotteryChances`] = 0; // 初始抽獎次數設為 0
                     updates[`bankData/${employeeId}/lotteryAdmin`] = null;
                     updates[`bankData/${employeeId}/lotteryNote`] = null;
                 });
@@ -805,7 +823,7 @@
                 return false;
             }
             if (!bankData[employeeId]) {
-                bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null, lotteryNote: null }; // 初始抽獎次數設為 0
+                bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null, lotteryNote: null };
                 await saveData();
             }
             return true;
@@ -1090,6 +1108,7 @@
             }
             const employeeId = document.getElementById('setLotteryEmployeeId').value.trim();
             const chances = parseInt(document.getElementById('lotteryChancesInput').value);
+            const mode = document.getElementById('lotteryMode').value;
             const note = document.getElementById('lotteryNote').value.trim();
             
             if (!ALLOWED_EMPLOYEE_IDS.includes(employeeId)) {
@@ -1107,7 +1126,13 @@
                     bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null, lotteryNote: null };
                 }
                 const previousChances = bankData[employeeId].lotteryChances || 0;
-                bankData[employeeId].lotteryChances = chances;
+                let newChances;
+                if (mode === 'add') {
+                    newChances = previousChances + chances; // 疊加模式
+                } else {
+                    newChances = chances; // 覆蓋模式
+                }
+                bankData[employeeId].lotteryChances = newChances;
                 bankData[employeeId].lotteryAdmin = currentAdmin;
                 bankData[employeeId].lotteryNote = note || '無備註';
                 await saveData();
@@ -1119,16 +1144,17 @@
                     date: new Date().toLocaleString('zh-TW'),
                     balance: calculateBalance(employeeId),
                     admin: currentAdmin,
-                    note: note || '無備註'
+                    note: `${mode === 'add' ? '疊加' : '覆蓋'}，備註: ${note || '無備註'}`
                 });
 
                 const snapshot = await get(ref(db, `bankData/${employeeId}`));
                 const savedData = snapshot.val();
-                if (savedData && savedData.lotteryChances === chances) {
+                if (savedData && savedData.lotteryChances === newChances) {
                     document.getElementById('setLotteryEmployeeId').value = '';
                     document.getElementById('lotteryChancesInput').value = '';
+                    document.getElementById('lotteryMode').value = 'add';
                     document.getElementById('lotteryNote').value = '';
-                    showSuccessMessage(`已為員工 ${employeeId} 設定 ${chances} 次抽獎機會！`);
+                    showSuccessMessage(`已為員工 ${employeeId} 設定 ${newChances} 次抽獎機會！（${mode === 'add' ? '疊加' : '覆蓋'} ${chances} 次）`);
                     const currentEmployeeId = document.getElementById('adminQueryEmployeeId').value.trim();
                     if (currentEmployeeId === employeeId) checkAdminBalance();
                 } else {
