@@ -36,7 +36,7 @@
             }
         }
         h1 {
-            font-family: 'Playfair Display', serif;
+            font-family: 'Playfair+Display', serif;
             color: #fff;
             text-align: center;
             background: linear-gradient(45deg, #f4c2c2, #d81b60);
@@ -335,7 +335,6 @@
                 width: 45%;
                 font-weight: bold;
                 text-align: left;
-                font-family: 'Dancing Script', cursive;
                 color: #6b4e71;
             }
             button {
@@ -1010,10 +1009,12 @@
                 return;
             }
             const earliestDeposit = [...bankData[employeeId].deposits].sort((a, b) => new Date(a.depositDate) - new Date(b.depositDate))[0];
-            const expiryDate = new Date(earliestDeposit.expiryDate).toLocaleDateString('zh-TW', {
+            const expiryDate = new Date(earliestDeposit.expiryDate).toLocaleString('zh-TW', {
                 year: 'numeric',
                 month: '2-digit',
-                day: '2-digit'
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
             });
             document.getElementById('validityNote').textContent = `最早存款/抽獎金額有效期至：${expiryDate}`;
             document.getElementById('validityNote').style.display = 'block';
@@ -1231,10 +1232,12 @@
             const depositDate = new Date();
             const expiryDate = new Date(depositDate);
             expiryDate.setDate(depositDate.getDate() + 15);
-            const formattedExpiryDate = expiryDate.toLocaleDateString('zh-TW', {
+            const formattedExpiryDate = expiryDate.toLocaleString('zh-TW', {
                 year: 'numeric',
                 month: '2-digit',
-                day: '2-digit'
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
             });
 
             document.getElementById('lotteryOverlay').style.display = 'block';
