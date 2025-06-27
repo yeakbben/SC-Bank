@@ -36,7 +36,7 @@
             }
         }
         h1 {
-            font-family: 'Playfair+Display', serif;
+            font-family: 'Playfair Display', serif;
             color: #fff;
             text-align: center;
             background: linear-gradient(45deg, #f4c2c2, #d81b60);
@@ -258,7 +258,7 @@
             padding: 20px;
             border-radius: 12px;
             border: 2px solid #f4c2c2;
-            text-align: center;
+            text-align: centerопас
             z-index: 1001;
             animation: popInScale 0.5s ease-out forwards;
             max-width: 90vw;
@@ -276,6 +276,38 @@
             margin: 10px 0;
         }
         .lottery-result button {
+            width: 50%;
+            margin: 10px auto;
+        }
+        .expiry-notice-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .expiry-notice-content {
+            background: rgba(255, 245, 247, 0.95);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #f4c2c2;
+            width: 80vw;
+            max-width: 400px;
+            animation: popIn 0.5s ease-out;
+            text-align: center;
+        }
+        .expiry-notice-content p {
+            font-family: Arial, 'Noto Sans TC', sans-serif;
+            color: #6b4e71;
+            font-size: 0.9rem;
+            margin: 10px 0;
+        }
+        .expiry-notice-content button {
             width: 50%;
             margin: 10px auto;
         }
@@ -335,6 +367,7 @@
                 width: 45%;
                 font-weight: bold;
                 text-align: left;
+                font-family: 'Dancing Script', cursive;
                 color: #6b4e71;
             }
             button {
@@ -450,7 +483,7 @@
                             <th>日期</th>
                             <th>餘額</th>
                             <th>管理員</th>
-                            <th>備註</th>
+                            <th>餘額</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -497,6 +530,15 @@
         <p id="lotteryResultText"></p>
         <p id="lotteryExpiryText" class="validity-text"></p>
         <button onclick="closeLotteryResult()">關閉</button>
+    </div>
+
+    <!-- 到期通知模態框 -->
+    <div id="expiryNoticeModal" class="expiry-notice-modal">
+        <div class="expiry-notice-content">
+            <h3>存款到期提醒</h3>
+            <p id="expiryNoticeText"></p>
+            <button onclick="closeExpiryNotice()">確認</button>
+        </div>
     </div>
 
     <script type="module">
@@ -572,7 +614,7 @@
                 const updates = {};
                 ALLOWED_EMPLOYEE_IDS.forEach(employeeId => {
                     updates[`bankData/${employeeId}/deposits`] = [];
-                    updates[`bankData/${employeeId}/lotteryChances`] = 0; // 初始抽獎次數設為 0
+                    updates[`bankData/${employeeId}/lotteryChances`] = 0;
                     updates[`bankData/${employeeId}/lotteryAdmin`] = null;
                     updates[`bankData/${employeeId}/lotteryNote`] = null;
                 });
@@ -710,7 +752,16 @@
             document.getElementById('employeeLoginModal').style.display = 'none';
         }
 
-        function loginEmployee() {
+        function showExpiryNotice(message) {
+            document.getElementById('expiryNoticeModal').style.display = 'flex';
+            document.getElementById('expiryNoticeText').innerHTML = message;
+        }
+
+        function closeExpiryNotice() {
+            document.getElementById('expiryNoticeModal').style.display = 'none';
+        }
+
+        async function loginEmployee() {
             const employeeId = document.getElementById('employeeLoginId').value.trim();
             if (validateEmployeeId(employeeId)) {
                 isEmployeeLoggedIn = true;
@@ -718,7 +769,34 @@
                 document.getElementById('employeeId').value = employeeId;
                 closeEmployeeLogin();
                 showPage('employeePage');
-                checkBalance();
+                await checkBalance();
+                
+                // Check for expiring deposits
+                if (await initializeEmployee(employeeId)) {
+                    const deposits = bankData[employeeId]?.deposits || [];
+                    const now = new Date();
+                    const expiringDeposits = deposits.filter(deposit => {
+                        const expiryDate = new Date(deposit.expiryDate);
+                        const timeDiff = expiryDate - now;
+                        const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
+                        return deposit.amount > 0 && daysDiff <= 15 && daysDiff > 0;
+                    });
+
+                    if (expiringDeposits.length > 0) {
+                        let message = '以下存款即將到期，請盡早使用：<br>';
+                        expiringDeposits.forEach(deposit => {
+                            const expiryDate = new Date(deposit.expiryDate).toLocaleString('zh-TW', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                            message += `金額 ${deposit.amount} 元，將於 ${expiryDate} 到期<br>`;
+                        });
+                        showExpiryNotice(message);
+                    }
+                }
             }
         }
 
@@ -1108,7 +1186,7 @@
                     bankData[employeeId] = { deposits: [], lotteryChances: 0, lotteryAdmin: null, lotteryNote: null };
                 }
                 const previousChances = bankData[employeeId].lotteryChances || 0;
-                const newChances = previousChances + chances; // 自動疊加
+                const newChances = previousChances + chances;
                 bankData[employeeId].lotteryChances = newChances;
                 bankData[employeeId].lotteryAdmin = currentAdmin;
                 bankData[employeeId].lotteryNote = note || '無備註';
@@ -1255,7 +1333,7 @@
                     bankData[employeeId].deposits = [];
                 }
                 bankData[employeeId].deposits.push(deposit);
-                bankData[employeeId].lotteryChances = chances - 1; // 減少一次抽獎次數
+                bankData[employeeId].lotteryChances = chances - 1;
                 const balance = calculateBalance(employeeId);
                 await push(ref(db, 'transactions'), {
                     employeeId,
@@ -1267,7 +1345,7 @@
                     note: lotteryNote
                 });
                 await saveData();
-                await checkBalance(); // 確保餘額和次數更新
+                await checkBalance();
             } catch (error) {
                 console.error("Error during lottery:", error.message);
                 if (error.code === 'PERMISSION_DENIED') {
@@ -1275,9 +1353,9 @@
                 } else {
                     showError(`抽獎獎金儲存失敗: ${error.message}`);
                 }
-                bankData[employeeId].lotteryChances = chances; // 恢復原次數
+                bankData[employeeId].lotteryChances = chances;
                 if (bankData[employeeId].deposits.length > 0) {
-                    bankData[employeeId].deposits.pop(); // 移除未保存的獎金
+                    bankData[employeeId].deposits.pop();
                 }
                 await saveData();
                 await checkBalance();
@@ -1372,6 +1450,8 @@
         window.toggleTransactions = toggleTransactions;
         window.initializeDatabase = initializeDatabase;
         window.resetTransactionsAndLottery = resetTransactionsAndLottery;
+        window.showExpiryNotice = showExpiryNotice;
+        window.closeExpiryNotice = closeExpiryNotice;
     </script>
 </body>
 </html>
