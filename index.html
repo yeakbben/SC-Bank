@@ -258,7 +258,7 @@
             padding: 20px;
             border-radius: 12px;
             border: 2px solid #f4c2c2;
-            text-align: centerопас
+            text-align: center;
             z-index: 1001;
             animation: popInScale 0.5s ease-out forwards;
             max-width: 90vw;
@@ -483,7 +483,7 @@
                             <th>日期</th>
                             <th>餘額</th>
                             <th>管理員</th>
-                            <th>餘額</th>
+                            <th>備註</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -529,7 +529,7 @@
     <div class="lottery-result" id="lotteryResultModal">
         <p id="lotteryResultText"></p>
         <p id="lotteryExpiryText" class="validity-text"></p>
-        <button onclick="closeLotteryResult()">關閉</button>
+        <button id="closeLotteryButton" onclick="closeLotteryResult()">關閉</button>
     </div>
 
     <!-- 到期通知模態框 -->
@@ -840,6 +840,8 @@
             document.getElementById('lastWithdrawTime').textContent = '';
             document.getElementById('lotteryChances').textContent = '';
             document.getElementById('adminLotteryChances').textContent = '';
+            document.getElementById('lotteryOverlay').style.display = 'none';
+            document.getElementById('lotteryResultModal').style.display = 'none';
             showPage('mainPage');
         }
 
@@ -1318,11 +1320,6 @@
                 minute: '2-digit'
             });
 
-            document.getElementById('lotteryOverlay').style.display = 'block';
-            document.getElementById('lotteryResultModal').style.display = 'block';
-            document.getElementById('lotteryResultText').innerHTML = `恭喜您抽中 ${prize} 元！`;
-            document.getElementById('lotteryExpiryText').innerHTML = `有效期限至：${formattedExpiryDate}`;
-
             try {
                 const deposit = {
                     amount: prize,
@@ -1345,6 +1342,10 @@
                     note: lotteryNote
                 });
                 await saveData();
+                document.getElementById('lotteryOverlay').style.display = 'block';
+                document.getElementById('lotteryResultModal').style.display = 'block';
+                document.getElementById('lotteryResultText').innerHTML = `恭喜您抽中 ${prize} 元！`;
+                document.getElementById('lotteryExpiryText').innerHTML = `有效期限至：${formattedExpiryDate}`;
                 await checkBalance();
             } catch (error) {
                 console.error("Error during lottery:", error.message);
@@ -1365,8 +1366,15 @@
         }
 
         function closeLotteryResult() {
-            document.getElementById('lotteryOverlay').style.display = 'none';
-            document.getElementById('lotteryResultModal').style.display = 'none';
+            const overlay = document.getElementById('lotteryOverlay');
+            const modal = document.getElementById('lotteryResultModal');
+            const resultText = document.getElementById('lotteryResultText');
+            const expiryText = document.getElementById('lotteryExpiryText');
+            
+            overlay.style.display = 'none';
+            modal.style.display = 'none';
+            resultText.innerHTML = '';
+            expiryText.innerHTML = '';
         }
 
         function exportTransactionsToExcel() {
@@ -1425,9 +1433,11 @@
             showSuccessMessage("個人交易記錄匯出成功！");
         }
 
+        // Initialize date and admin table
         updateDate();
         updateAdminTable();
 
+        // Expose functions to global scope
         window.showEmployeeLogin = showEmployeeLogin;
         window.closeEmployeeLogin = closeEmployeeLogin;
         window.loginEmployee = loginEmployee;
@@ -1452,6 +1462,9 @@
         window.resetTransactionsAndLottery = resetTransactionsAndLottery;
         window.showExpiryNotice = showExpiryNotice;
         window.closeExpiryNotice = closeExpiryNotice;
+
+        // Ensure close button is properly initialized
+        document.getElementById('closeLotteryButton').addEventListener('click', closeLotteryResult);
     </script>
 </body>
 </html>
