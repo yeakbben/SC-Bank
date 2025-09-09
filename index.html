@@ -1298,7 +1298,7 @@
             const lotteryAdmin = bankData[employeeId].lotteryAdmin || '未記錄';
             const lotteryNote = bankData[employeeId].lotteryNote || '無備註';
             const prizes = [200, 150, 100, 50];
-            const weights = [10, 20, 30, 40];
+            const weights = [25, 25, 25, 25]; // Equal probability for each prize
             const totalWeight = weights.reduce((a, b) => a + b, 0);
             const randomValue = Math.random() * totalWeight;
             let cumulativeWeight = 0;
@@ -1314,7 +1314,7 @@
 
             const depositDate = new Date();
             const expiryDate = new Date(depositDate);
-            expiryDate.setDate(depositDate.getDate() + 15);
+            expiryDate.setDate(depositDate.getDate() + 30); // Changed to 30 days
             const formattedExpiryDate = expiryDate.toLocaleString('zh-TW', {
                 year: 'numeric',
                 month: '2-digit',
